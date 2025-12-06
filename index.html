@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1021">
+  <meta name="description" content="MIDI piano color field visualizer">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Piano Color Field</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap');
+
+    :root {
+      --bg: #050914;
+      --glass: rgba(12, 16, 35, 0.7);
+      --outline: rgba(255, 255, 255, 0.18);
+      --text: #f6f8ff;
+      --muted: rgba(246, 248, 255, 0.65);
+      --accent: #7cf4ff;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    canvas#viz {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    .hud {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .card {
+      pointer-events: auto;
+      border-radius: 18px;
+      padding: 14px 16px;
+      backdrop-filter: blur(18px);
+      background: var(--glass);
+      border: 1px solid var(--outline);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      min-width: 0;
+    }
+
+    .primary {
+      flex: 1;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0 0 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .status {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px rgba(124, 244, 255, 0.14);
+    }
+
+    button {
+      border: 1px solid var(--outline);
+      border-radius: 12px;
+      background: linear-gradient(120deg, rgba(124, 244, 255, 0.12), rgba(255, 255, 255, 0.04));
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover { transform: translateY(-1px); border-color: rgba(124, 244, 255, 0.8); }
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .install-area {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .tip {
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .footnote {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(5, 9, 20, 0.55);
+      border: 1px solid var(--outline);
+      backdrop-filter: blur(12px);
+      font-size: 12px;
+      color: var(--muted);
+      max-width: min(340px, 90vw);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+      z-index: 2;
+    }
+
+    @media (max-width: 720px) {
+      .hud { flex-direction: column; }
+      .install-area { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="viz" aria-hidden="true"></canvas>
+  <div class="hud" role="presentation">
+    <div class="card primary" aria-live="polite">
+      <h1>Piano Color Field</h1>
+      <div class="status">
+        <span class="pill" id="midi-status"><span class="dot"></span>Scanning MIDI…</span>
+        <span class="pill" id="note-pill">No notes yet</span>
+        <span class="pill" id="mode-pill">Velocity reactive</span>
+      </div>
+      <div class="tip">Plug in your keyboard, allow MIDI access, and play. Each note paints the whole view in a vivid hue; how hard you hit shapes the brightness.</div>
+    </div>
+    <div class="card" style="min-width: 220px;">
+      <div class="install-area">
+        <span id="install-hint">Install to use offline.</span>
+        <button id="install-button" hidden>Add to Home Screen</button>
+      </div>
+      <div class="tip" id="ios-tip" hidden>
+        On iOS: tap the Share icon → <strong>Add to Home Screen</strong> for a full-screen experience.
+      </div>
+      <div class="tip" id="offline-tip" hidden>
+        Ready to play offline after your first visit.
+      </div>
+    </div>
+  </div>
+  <div class="footnote" id="info">MIDI not initialized yet.</div>
+
+  <script>
+    const canvas = document.getElementById('viz');
+    const ctx = canvas.getContext('2d');
+    const midiStatus = document.getElementById('midi-status');
+    const notePill = document.getElementById('note-pill');
+    const info = document.getElementById('info');
+    const installButton = document.getElementById('install-button');
+    const installHint = document.getElementById('install-hint');
+    const iosTip = document.getElementById('ios-tip');
+    const offlineTip = document.getElementById('offline-tip');
+
+    const colors = [
+      '#ff5f6d', '#ffc371', '#7cf4ff', '#7cffb1', '#ff7cf0', '#a07cff', '#7cdbff', '#ff9f7c', '#47f1a9', '#f5ff7c', '#ff7c8f', '#7c8dff'
+    ];
+
+    let pendingInstallEvent = null;
+    let viewW = window.innerWidth;
+    let viewH = window.innerHeight;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      viewW = window.innerWidth;
+      viewH = window.innerHeight;
+      canvas.width = viewW * dpr;
+      canvas.height = viewH * dpr;
+      canvas.style.width = '100vw';
+      canvas.style.height = '100vh';
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    }
+
+    function paint(color, velocity = 100) {
+      const intensity = Math.min(1, Math.max(0.2, velocity / 127));
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, viewW, viewH);
+
+      const overlay = ctx.createLinearGradient(0, 0, viewW, viewH);
+      overlay.addColorStop(0, 'rgba(255,255,255,' + (0.18 * intensity) + ')');
+      overlay.addColorStop(1, 'rgba(0,0,0,' + (0.22 * intensity) + ')');
+      ctx.fillStyle = overlay;
+      ctx.fillRect(0, 0, viewW, viewH);
+    }
+
+    function colorForNote(note) {
+      return colors[note % colors.length];
+    }
+
+    function describeNote(note) {
+      const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const name = names[note % 12];
+      const octave = Math.floor(note / 12) - 1;
+      return name + octave;
+    }
+
+    async function setupMIDI() {
+      if (!('requestMIDIAccess' in navigator)) {
+        midiStatus.innerHTML = '<span class="dot" style="background:#ff7c8f"></span>No MIDI support';
+        info.textContent = 'This browser does not support Web MIDI. Use Chrome or Edge for MIDI input.';
+        return;
+      }
+
+      midiStatus.innerHTML = '<span class="dot"></span>Waiting for permission…';
+
+      try {
+        const access = await navigator.requestMIDIAccess({ sysex: false });
+        midiStatus.innerHTML = '<span class="dot" style="background:#7cffb1"></span>MIDI ready';
+        info.textContent = 'Connected. Press keys on your piano to flood the screen.';
+        access.onstatechange = handleStateChange;
+        access.inputs.forEach(listenToInput);
+        window.midiAccess = access;
+      } catch (err) {
+        midiStatus.innerHTML = '<span class="dot" style="background:#ff7c8f"></span>MIDI blocked';
+        info.textContent = 'MIDI permission was denied. Please allow access and reconnect your keyboard.';
+      }
+    }
+
+    function handleStateChange(event) {
+      if (event.port.type === 'input') {
+        const label = event.port.name || 'MIDI device';
+        if (event.port.state === 'connected') {
+          info.textContent = 'Connected to ' + label + '. Play to paint the canvas.';
+          listenToInput(event.port);
+        } else {
+          info.textContent = label + ' disconnected.';
+        }
+      }
+    }
+
+    function listenToInput(input) {
+      input.onmidimessage = (message) => {
+        const [status, note, velocity] = message.data;
+        const command = status & 0xf0;
+        if (command === 0x90 && velocity > 0) {
+          const color = colorForNote(note);
+          paint(color, velocity);
+          const label = describeNote(note) + ' · velocity ' + velocity;
+          notePill.textContent = label;
+          notePill.style.background = 'rgba(255,255,255,0.08)';
+          info.textContent = 'Painting ' + label;
+        }
+      };
+    }
+
+    function setupInstallPrompt() {
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        pendingInstallEvent = event;
+        installButton.hidden = false;
+        installHint.textContent = 'Install for quick launch and offline use.';
+      });
+
+      installButton.addEventListener('click', async () => {
+        if (!pendingInstallEvent) return;
+        pendingInstallEvent.prompt();
+        const result = await pendingInstallEvent.userChoice;
+        if (result.outcome === 'accepted') {
+          installHint.textContent = 'Added! Launch me from your home screen.';
+          installButton.hidden = true;
+        }
+        pendingInstallEvent = null;
+      });
+
+      window.addEventListener('appinstalled', () => {
+        installHint.textContent = 'Installed ✔';
+        installButton.hidden = true;
+      });
+    }
+
+    function showIOSTips() {
+      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+      if (isIOS && !isStandalone) {
+        iosTip.hidden = false;
+      }
+    }
+
+    async function registerServiceWorker() {
+      if (!('serviceWorker' in navigator)) return;
+      try {
+        await navigator.serviceWorker.register('./sw.js');
+        offlineTip.hidden = false;
+      } catch (err) {
+        console.warn('Service worker registration failed', err);
+      }
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    paint('#0b1021', 40);
+    setupMIDI();
+    setupInstallPrompt();
+    showIOSTips();
+    registerServiceWorker();
+  </script>
+</body>
+</html>
