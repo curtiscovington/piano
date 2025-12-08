@@ -53,6 +53,7 @@
       align-items: stretch;
       pointer-events: none;
       z-index: 2;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
     }
 
     .card {
@@ -238,6 +239,55 @@
       max-width: min(340px, 90vw);
       box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
       z-index: 2;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    .ui-toggle {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 3;
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border-radius: 14px;
+      background: var(--glass);
+      border: 1px solid var(--outline);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38);
+      cursor: pointer;
+    }
+
+    .ui-toggle .icon {
+      width: 20px;
+      height: 20px;
+      position: relative;
+    }
+
+    .ui-toggle .icon::before,
+    .ui-toggle .icon::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--text);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .ui-toggle .icon::before { top: 5px; }
+    .ui-toggle .icon::after { bottom: 5px; }
+
+    body:not(.ui-hidden) .ui-toggle .icon::before { transform: translateY(4px) rotate(45deg); }
+    body:not(.ui-hidden) .ui-toggle .icon::after { transform: translateY(-4px) rotate(-45deg); }
+
+    .ui-hidden .hud,
+    .ui-hidden .footnote {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
 
     @media (max-width: 720px) {
@@ -249,8 +299,11 @@
     }
   </style>
 </head>
-<body>
+<body class="ui-hidden">
   <canvas id="viz" aria-hidden="true"></canvas>
+  <button id="ui-toggle" class="ui-toggle" aria-pressed="false" aria-label="Show controls">
+    <span class="icon" aria-hidden="true"></span>
+  </button>
   <div class="hud" role="presentation">
     <div class="card primary" aria-live="polite">
       <h1>Piano Color Field</h1>
@@ -310,6 +363,7 @@
     const savePaletteButton = document.getElementById('save-palette');
     const updatePaletteButton = document.getElementById('update-palette');
     const paletteMessage = document.getElementById('palette-message');
+    const uiToggle = document.getElementById('ui-toggle');
 
     const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const defaultPalette = {
@@ -340,6 +394,7 @@
     let pendingInstallEvent = null;
     let viewW = window.innerWidth;
     let viewH = window.innerHeight;
+    let uiVisible = false;
 
     function resize() {
       const dpr = window.devicePixelRatio || 1;
@@ -351,6 +406,13 @@
       canvas.style.height = '100vh';
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
+    }
+
+    function setUIVisibility(visible) {
+      uiVisible = visible;
+      document.body.classList.toggle('ui-hidden', !visible);
+      uiToggle.setAttribute('aria-pressed', String(visible));
+      uiToggle.setAttribute('aria-label', visible ? 'Hide controls' : 'Show controls');
     }
 
     function paint(color, velocity = 100) {
@@ -595,7 +657,12 @@
       }
     }
 
+    uiToggle.addEventListener('click', () => {
+      setUIVisibility(!uiVisible);
+    });
+
     window.addEventListener('resize', resize);
+    setUIVisibility(false);
     resize();
     initPaletteControls();
     paint('#0b1021', 40);
