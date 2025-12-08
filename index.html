@@ -120,6 +120,20 @@
     button:active { transform: translateY(0); }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    select, input[type="text"] {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--outline);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 9px 10px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .ghost {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
     .install-area {
       display: flex;
       gap: 10px;
@@ -127,6 +141,79 @@
       justify-content: flex-end;
       flex-wrap: wrap;
       font-size: 13px;
+      color: var(--muted);
+    }
+
+    .palette-card {
+      width: 360px;
+      max-width: 100%;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .label {
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .section-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .select-wrap {
+      min-width: 150px;
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .swatch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .note-label {
+      font-size: 13px;
+      letter-spacing: 0.1px;
+    }
+
+    .swatch-row input[type="color"] {
+      width: 56px;
+      height: 34px;
+      padding: 0;
+      border: 1px solid var(--outline);
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .palette-actions {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .palette-message {
+      margin-top: 8px;
+      font-size: 12px;
       color: var(--muted);
     }
 
@@ -156,6 +243,9 @@
     @media (max-width: 720px) {
       .hud { flex-direction: column; }
       .install-area { justify-content: flex-start; }
+      .section-header { flex-direction: column; align-items: flex-start; }
+      .select-wrap { width: 100%; }
+      .palette-actions { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -170,6 +260,24 @@
         <span class="pill" id="mode-pill">Velocity reactive</span>
       </div>
       <div class="tip">Plug in your keyboard, allow MIDI access, and play. Each note paints the whole view in a vivid hue; how hard you hit shapes the brightness.</div>
+    </div>
+    <div class="card palette-card" aria-label="Color palette controls">
+      <div class="section-header">
+        <div>
+          <div class="label">Palette</div>
+          <div class="section-sub">Tweak note colors and save presets.</div>
+        </div>
+        <div class="select-wrap">
+          <select id="palette-select" aria-label="Choose palette"></select>
+        </div>
+      </div>
+      <div class="palette-grid" id="palette-grid"></div>
+      <div class="palette-actions">
+        <input id="palette-name" type="text" placeholder="Preset name" aria-label="Preset name">
+        <button id="save-palette">Save preset</button>
+        <button id="update-palette" class="ghost">Update selected</button>
+      </div>
+      <div class="palette-message" id="palette-message" aria-live="polite"></div>
     </div>
     <div class="card" style="min-width: 220px;">
       <div class="install-area">
@@ -196,21 +304,38 @@
     const installHint = document.getElementById('install-hint');
     const iosTip = document.getElementById('ios-tip');
     const offlineTip = document.getElementById('offline-tip');
+    const paletteSelect = document.getElementById('palette-select');
+    const paletteGrid = document.getElementById('palette-grid');
+    const paletteNameInput = document.getElementById('palette-name');
+    const savePaletteButton = document.getElementById('save-palette');
+    const updatePaletteButton = document.getElementById('update-palette');
+    const paletteMessage = document.getElementById('palette-message');
 
-    const colors = [
-      '#FF0000', // C / B#
-      '#FF5A33', // C# / Db
-      '#FFA500', // D
-      '#FFD000', // D# / Eb
-      '#FFFF00', // E / Fb
-      '#00FF00', // F / E#
-      '#00C8A0', // F# / Gb
-      '#00BFFF', // G
-      '#7A5BFF', // G# / Ab
-      '#8A2BE2', // A
-      '#C04BDA', // A# / Bb
-      '#FFC0CB'  // B / Cb
-    ];
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const defaultPalette = {
+      id: 'default',
+      name: 'Vivid spectrum',
+      colors: [
+        '#FF0000', // C / B#
+        '#FF5A33', // C# / Db
+        '#FFA500', // D
+        '#FFD000', // D# / Eb
+        '#FFFF00', // E / Fb
+        '#00FF00', // F / E#
+        '#00C8A0', // F# / Gb
+        '#00BFFF', // G
+        '#7A5BFF', // G# / Ab
+        '#8A2BE2', // A
+        '#C04BDA', // A# / Bb
+        '#FFC0CB'  // B / Cb
+      ],
+      locked: true
+    };
+
+    let colors = [...defaultPalette.colors];
+    let palettes = [];
+    let activePaletteId = defaultPalette.id;
+    let colorInputs = [];
 
     let pendingInstallEvent = null;
     let viewW = window.innerWidth;
@@ -245,10 +370,137 @@
     }
 
     function describeNote(note) {
-      const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-      const name = names[note % 12];
+      const name = NOTE_NAMES[note % 12];
       const octave = Math.floor(note / 12) - 1;
       return name + octave;
+    }
+
+    function loadPalettesFromStorage() {
+      try {
+        const stored = JSON.parse(localStorage.getItem('palettes') || '[]');
+        if (!Array.isArray(stored)) return [];
+        return stored.filter((p) => Array.isArray(p.colors) && p.colors.length === 12 && p.id && p.name);
+      } catch (err) {
+        return [];
+      }
+    }
+
+    function ensureDefaultPalette(list) {
+      const filtered = list.filter((p) => p.id !== defaultPalette.id);
+      return [defaultPalette, ...filtered];
+    }
+
+    function persistPalettes() {
+      localStorage.setItem('palettes', JSON.stringify(palettes));
+      localStorage.setItem('activePaletteId', activePaletteId);
+    }
+
+    function showPaletteStatus(message, isError = false) {
+      paletteMessage.textContent = message;
+      paletteMessage.style.color = isError ? '#ff9ba8' : 'var(--muted)';
+    }
+
+    function refreshColorInputs() {
+      colorInputs.forEach((input) => {
+        const idx = Number(input.dataset.index);
+        input.value = colors[idx] || '#000000';
+      });
+    }
+
+    function applyPaletteById(id) {
+      const palette = palettes.find((p) => p.id === id) || defaultPalette;
+      activePaletteId = palette.id;
+      colors = [...palette.colors];
+      refreshColorInputs();
+      persistPalettes();
+      showPaletteStatus('Using "' + palette.name + '" palette.');
+    }
+
+    function syncPaletteSelect() {
+      paletteSelect.innerHTML = '';
+      palettes.forEach((p) => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = p.name + (p.locked ? ' (built-in)' : '');
+        paletteSelect.appendChild(option);
+      });
+      paletteSelect.value = activePaletteId;
+    }
+
+    function buildPaletteGrid() {
+      paletteGrid.innerHTML = '';
+      colorInputs = NOTE_NAMES.map((name, idx) => {
+        const row = document.createElement('label');
+        row.className = 'swatch-row';
+
+        const label = document.createElement('span');
+        label.className = 'note-label';
+        label.textContent = name;
+
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = colors[idx];
+        input.dataset.index = idx;
+        input.addEventListener('input', (event) => {
+          colors[Number(event.target.dataset.index)] = event.target.value;
+        });
+
+        row.appendChild(label);
+        row.appendChild(input);
+        paletteGrid.appendChild(row);
+        return input;
+      });
+    }
+
+    function saveCurrentAsPreset() {
+      const name = paletteNameInput.value.trim();
+      if (!name) {
+        showPaletteStatus('Give your preset a name first.', true);
+        paletteNameInput.focus();
+        return;
+      }
+      const newPalette = {
+        id: 'preset-' + Date.now(),
+        name,
+        colors: [...colors]
+      };
+      palettes.push(newPalette);
+      activePaletteId = newPalette.id;
+      syncPaletteSelect();
+      paletteSelect.value = activePaletteId;
+      persistPalettes();
+      showPaletteStatus('Saved "' + name + '" preset.');
+      paletteNameInput.value = '';
+    }
+
+    function updateSelectedPreset() {
+      const palette = palettes.find((p) => p.id === activePaletteId);
+      if (!palette || palette.locked) {
+        showPaletteStatus('Select a saved preset to update.', true);
+        return;
+      }
+      palette.colors = [...colors];
+      persistPalettes();
+      showPaletteStatus('Updated "' + palette.name + '".');
+    }
+
+    function initPaletteControls() {
+      palettes = ensureDefaultPalette(loadPalettesFromStorage());
+      const storedActive = localStorage.getItem('activePaletteId');
+      const activeFromStorage = palettes.find((p) => p.id === storedActive);
+      const paletteToUse = activeFromStorage || defaultPalette;
+      activePaletteId = paletteToUse.id;
+      colors = [...paletteToUse.colors];
+
+      buildPaletteGrid();
+      syncPaletteSelect();
+      showPaletteStatus('Using "' + paletteToUse.name + '" palette.');
+
+      paletteSelect.addEventListener('change', (event) => {
+        applyPaletteById(event.target.value);
+      });
+      savePaletteButton.addEventListener('click', saveCurrentAsPreset);
+      updatePaletteButton.addEventListener('click', updateSelectedPreset);
     }
 
     async function setupMIDI() {
@@ -345,6 +597,7 @@
 
     window.addEventListener('resize', resize);
     resize();
+    initPaletteControls();
     paint('#0b1021', 40);
     setupMIDI();
     setupInstallPrompt();
