@@ -428,6 +428,12 @@
     let viewW = window.innerWidth;
     let viewH = window.innerHeight;
     let uiVisible = false;
+    let activeRipples = [];
+    let targetColor = hexToRgb('#0b1021');
+    let currentColor = { ...targetColor };
+    let targetIntensity = 0.4;
+    let currentIntensity = targetIntensity;
+    let animationFrameId = null;
 
     function resize() {
       const dpr = window.devicePixelRatio || 1;
@@ -448,16 +454,103 @@
       uiToggle.setAttribute('aria-label', visible ? 'Hide controls' : 'Show controls');
     }
 
-    function paint(color, velocity = 100) {
-      const intensity = Math.min(1, Math.max(0.2, velocity / 127));
-      ctx.fillStyle = color;
+    function hexToRgb(hex) {
+      const normalized = hex.replace('#', '');
+      const value = normalized.length === 3
+        ? normalized.split('').map((c) => c + c).join('')
+        : normalized.padEnd(6, '0');
+      const int = parseInt(value, 16);
+      return {
+        r: (int >> 16) & 255,
+        g: (int >> 8) & 255,
+        b: int & 255
+      };
+    }
+
+    function rgbaString({ r, g, b }, alpha = 1) {
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function lerpColor(a, b, t) {
+      return {
+        r: Math.round(lerp(a.r, b.r, t)),
+        g: Math.round(lerp(a.g, b.g, t)),
+        b: Math.round(lerp(a.b, b.b, t))
+      };
+    }
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function renderRipples(now) {
+      if (!activeRipples.length) return;
+      const centerX = viewW / 2;
+      const centerY = viewH / 2;
+      const maxRadius = Math.hypot(viewW, viewH) * 0.55;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      activeRipples = activeRipples.filter((ripple) => {
+        const progress = Math.min(1, (now - ripple.start) / ripple.duration);
+        if (progress >= 1) return false;
+        const eased = easeOutCubic(progress);
+        const radius = lerp(viewW * 0.04, maxRadius, eased);
+        const alpha = (1 - eased) * 0.75 * ripple.velocity;
+
+        const gradient = ctx.createRadialGradient(centerX, centerY, radius * 0.2, centerX, centerY, radius);
+        gradient.addColorStop(0, rgbaString(ripple.color, alpha));
+        gradient.addColorStop(0.35, rgbaString(ripple.color, alpha * 0.75));
+        gradient.addColorStop(0.7, rgbaString(ripple.color, alpha * 0.2));
+        gradient.addColorStop(1, rgbaString(ripple.color, 0));
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, viewW, viewH);
+        return true;
+      });
+      ctx.restore();
+    }
+
+    function renderFrame(now) {
+      currentColor = lerpColor(currentColor, targetColor, 0.065);
+      currentIntensity = lerp(currentIntensity, targetIntensity, 0.05);
+
+      ctx.clearRect(0, 0, viewW, viewH);
+      ctx.fillStyle = rgbaString(currentColor, 1);
       ctx.fillRect(0, 0, viewW, viewH);
 
       const overlay = ctx.createLinearGradient(0, 0, viewW, viewH);
-      overlay.addColorStop(0, 'rgba(255,255,255,' + (0.18 * intensity) + ')');
-      overlay.addColorStop(1, 'rgba(0,0,0,' + (0.22 * intensity) + ')');
+      overlay.addColorStop(0, 'rgba(255,255,255,' + (0.16 * currentIntensity) + ')');
+      overlay.addColorStop(1, 'rgba(0,0,0,' + (0.22 * currentIntensity) + ')');
       ctx.fillStyle = overlay;
       ctx.fillRect(0, 0, viewW, viewH);
+
+      renderRipples(now || performance.now());
+      animationFrameId = requestAnimationFrame(renderFrame);
+    }
+
+    function startAnimationLoop() {
+      if (animationFrameId !== null) return;
+      animationFrameId = requestAnimationFrame(renderFrame);
+    }
+
+    function paint(color, velocity = 100) {
+      const normalizedVelocity = Math.min(1, Math.max(0.25, velocity / 127));
+      targetColor = hexToRgb(color);
+      targetIntensity = normalizedVelocity;
+      activeRipples.push({
+        color: { ...targetColor },
+        velocity: normalizedVelocity,
+        start: performance.now(),
+        duration: 900 + (1 - normalizedVelocity) * 320
+      });
+      if (activeRipples.length > 8) {
+        activeRipples.shift();
+      }
     }
 
     function colorForNote(note) {
@@ -699,6 +792,7 @@
     resize();
     initPaletteControls();
     paint('#0b1021', 40);
+    startAnimationLoop();
     setupMIDI();
     setupInstallPrompt();
     showIOSTips();
