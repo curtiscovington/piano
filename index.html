@@ -11,15 +11,17 @@
   <link rel="manifest" href="manifest.webmanifest">
   <title>Piano Color Field</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap');
 
     :root {
-      --bg: #050914;
-      --glass: rgba(12, 16, 35, 0.7);
-      --outline: rgba(255, 255, 255, 0.18);
-      --text: #f6f8ff;
-      --muted: rgba(246, 248, 255, 0.65);
-      --accent: #7cf4ff;
+      --bg: #050713;
+      --panel: rgba(12, 15, 29, 0.7);
+      --stroke: rgba(255, 255, 255, 0.16);
+      --text: #f5f6ff;
+      --muted: #9fb0d3;
+      --accent: #77ffd0;
+      --accent-2: #7cc6ff;
+      --glow: rgba(119, 255, 208, 0.18);
     }
 
     * { box-sizing: border-box; }
@@ -30,7 +32,7 @@
       height: 100%;
       background: var(--bg);
       color: var(--text);
-      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      font-family: 'Sora', system-ui, -apple-system, sans-serif;
       overflow: hidden;
       -webkit-font-smoothing: antialiased;
     }
@@ -45,12 +47,10 @@
 
     .hud {
       position: fixed;
-      top: 14px;
-      left: 14px;
-      right: 14px;
-      display: flex;
-      gap: 12px;
-      align-items: stretch;
+      inset: 18px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
       pointer-events: none;
       z-index: 2;
       transition: opacity 0.2s ease, visibility 0.2s ease;
@@ -58,56 +58,21 @@
 
     .card {
       pointer-events: auto;
-      border-radius: 18px;
+      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(18px);
-      background: var(--glass);
-      border: 1px solid var(--outline);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(16px) saturate(140%);
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.02);
       min-width: 0;
     }
 
-    .primary {
-      flex: 1;
-    }
-
-    h1 {
-      font-size: 18px;
-      margin: 0 0 4px;
-      letter-spacing: 0.3px;
-    }
-
-    .status {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 6px rgba(124, 244, 255, 0.14);
-    }
+    h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: 0.3px; }
 
     button {
-      border: 1px solid var(--outline);
+      border: 1px solid var(--stroke);
       border-radius: 12px;
-      background: linear-gradient(120deg, rgba(124, 244, 255, 0.12), rgba(255, 255, 255, 0.04));
+      background: linear-gradient(130deg, rgba(119, 255, 208, 0.16), rgba(124, 198, 255, 0.12));
       color: var(--text);
       padding: 10px 14px;
       font-size: 14px;
@@ -117,13 +82,13 @@
       transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    button:hover { transform: translateY(-1px); border-color: rgba(124, 244, 255, 0.8); }
+    button:hover { transform: translateY(-1px); border-color: var(--accent); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); }
     button:active { transform: translateY(0); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
 
     select, input[type="text"] {
       background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--outline);
+      border: 1px solid var(--stroke);
       border-radius: 10px;
       color: var(--text);
       padding: 9px 10px;
@@ -131,35 +96,81 @@
       width: 100%;
     }
 
-    .ghost {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .install-area {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .palette-card {
-      width: 360px;
-      max-width: 100%;
-    }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .shell-top {
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 12px;
     }
 
+    .primary {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.4px;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.25em;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .status {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .ghost { background: rgba(255, 255, 255, 0.03); }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px var(--glow);
+    }
+
+    .deck {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .palette-card { min-height: 0; }
+
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
     .label {
-      font-weight: 600;
-      letter-spacing: 0.2px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
     }
 
     .section-sub {
@@ -168,25 +179,23 @@
       margin-top: 4px;
     }
 
-    .select-wrap {
-      min-width: 150px;
-    }
+    .select-wrap { min-width: 180px; }
 
     .palette-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 8px;
-      margin: 12px 0;
+      margin: 14px 0 8px;
     }
 
     .swatch-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
@@ -196,11 +205,11 @@
     }
 
     .swatch-row input[type="color"] {
-      width: 56px;
-      height: 34px;
+      width: 58px;
+      height: 36px;
       padding: 0;
-      border: 1px solid var(--outline);
-      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
       background: transparent;
       cursor: pointer;
     }
@@ -219,42 +228,57 @@
     }
 
     .tip {
-      margin-top: 6px;
+      margin-top: 8px;
       font-size: 13px;
       color: var(--muted);
-      line-height: 1.5;
+      line-height: 1.6;
+    }
+
+    .mini-card {
+      display: grid;
+      gap: 6px;
+    }
+
+    .install-area {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--muted);
     }
 
     .footnote {
       position: fixed;
-      bottom: 16px;
-      right: 16px;
-      padding: 10px 12px;
+      bottom: 18px;
+      left: 18px;
+      padding: 11px 13px;
       border-radius: 12px;
-      background: rgba(5, 9, 20, 0.55);
-      border: 1px solid var(--outline);
-      backdrop-filter: blur(12px);
+      background: rgba(5, 8, 20, 0.7);
+      border: 1px solid var(--stroke);
+      backdrop-filter: blur(10px);
       font-size: 12px;
       color: var(--muted);
-      max-width: min(340px, 90vw);
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+      max-width: min(360px, 90vw);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
       z-index: 2;
       transition: opacity 0.2s ease, visibility 0.2s ease;
     }
 
     .ui-toggle {
       position: fixed;
-      top: 14px;
-      right: 14px;
+      bottom: 18px;
+      right: 18px;
       z-index: 3;
-      width: 46px;
-      height: 46px;
+      width: 48px;
+      height: 48px;
       display: grid;
       place-items: center;
       padding: 0;
       border-radius: 14px;
-      background: var(--glass);
-      border: 1px solid var(--outline);
+      background: var(--panel);
+      border: 1px solid var(--stroke);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38);
       cursor: pointer;
     }
@@ -290,12 +314,17 @@
       pointer-events: none;
     }
 
-    @media (max-width: 720px) {
-      .hud { flex-direction: column; }
-      .install-area { justify-content: flex-start; }
+    @media (max-width: 960px) {
+      .deck { grid-template-columns: 1fr; }
       .section-header { flex-direction: column; align-items: flex-start; }
       .select-wrap { width: 100%; }
       .palette-actions { grid-template-columns: 1fr; }
+      .install-area { justify-content: flex-start; }
+    }
+
+    @media (max-width: 640px) {
+      .hud { inset: 14px; }
+      .primary { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
@@ -305,43 +334,47 @@
     <span class="icon" aria-hidden="true"></span>
   </button>
   <div class="hud" role="presentation">
-    <div class="card primary" aria-live="polite">
-      <h1>Piano Color Field</h1>
-      <div class="status">
-        <span class="pill" id="midi-status"><span class="dot"></span>Scanning MIDI…</span>
-        <span class="pill" id="note-pill">No notes yet</span>
-        <span class="pill" id="mode-pill">Velocity reactive</span>
-      </div>
-      <div class="tip">Plug in your keyboard, allow MIDI access, and play. Each note paints the whole view in a vivid hue; how hard you hit shapes the brightness.</div>
-    </div>
-    <div class="card palette-card" aria-label="Color palette controls">
-      <div class="section-header">
-        <div>
-          <div class="label">Palette</div>
-          <div class="section-sub">Tweak note colors and save presets.</div>
+    <div class="shell-top">
+      <div class="card primary" aria-live="polite">
+        <div class="status">
+          <span class="pill" id="midi-status"><span class="dot"></span>Scanning MIDI…</span>
+          <span class="pill" id="note-pill">No notes yet</span>
+          <span class="pill ghost" id="mode-pill">Velocity reactive</span>
         </div>
-        <div class="select-wrap">
-          <select id="palette-select" aria-label="Choose palette"></select>
-        </div>
-      </div>
-      <div class="palette-grid" id="palette-grid"></div>
-      <div class="palette-actions">
-        <input id="palette-name" type="text" placeholder="Preset name" aria-label="Preset name">
-        <button id="save-palette">Save preset</button>
-        <button id="update-palette" class="ghost">Update selected</button>
-      </div>
-      <div class="palette-message" id="palette-message" aria-live="polite"></div>
-    </div>
-    <div class="card" style="min-width: 220px;">
-      <div class="install-area">
-        <span id="install-hint">Install to use offline.</span>
+        
         <button id="install-button" hidden>Add to Home Screen</button>
+      
       </div>
-      <div class="tip" id="ios-tip" hidden>
-        On iOS: tap the Share icon → <strong>Add to Home Screen</strong> for a full-screen experience.
+      
+    </div>
+    <div class="deck">
+      <div class="card palette-card" aria-label="Color palette controls">
+        <div class="section-header">
+          <div>
+            <div class="label">Palette studio</div>
+            <div class="section-sub">Assign a hue to each note and store your own set.</div>
+          </div>
+          <div class="select-wrap">
+            <select id="palette-select" aria-label="Choose palette"></select>
+          </div>
+        </div>
+        <div class="palette-grid" id="palette-grid"></div>
+        <div class="palette-actions">
+          <input id="palette-name" type="text" placeholder="Preset name" aria-label="Preset name">
+          <button id="save-palette">Save preset</button>
+          <button id="update-palette" class="ghost">Update selected</button>
+        </div>
+        <div class="palette-message" id="palette-message" aria-live="polite"></div>
       </div>
-      <div class="tip" id="offline-tip" hidden>
-        Ready to play offline after your first visit.
+      <div class="card mini-card" style="min-width: 240px;">
+        <div class="label">How it plays</div>
+        <div class="tip">Plug in your keyboard, allow MIDI, and play. Each note floods the view with its color; velocity shapes the brightness.</div>
+        <div class="tip" id="ios-tip" hidden>
+          On iOS: Share icon → <strong>Add to Home Screen</strong> for a full-screen experience.
+        </div>
+        <div class="tip" id="offline-tip" hidden>
+          Ready to play offline after your first visit.
+        </div>
       </div>
     </div>
   </div>
