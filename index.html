@@ -54,6 +54,9 @@
       pointer-events: none;
       z-index: 2;
       transition: opacity 0.2s ease, visibility 0.2s ease;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .card {
@@ -323,8 +326,9 @@
     }
 
     @media (max-width: 640px) {
-      .hud { inset: 14px; }
+      .hud { inset: 14px; max-height: calc(100vh - 28px); }
       .primary { flex-direction: column; align-items: flex-start; }
+      .mini-card { margin-bottom: 16px; }
     }
   </style>
 </head>
@@ -434,6 +438,19 @@
     let targetIntensity = 0.4;
     let currentIntensity = targetIntensity;
     let animationFrameId = null;
+    const installHintEl = installHint; // alias to guard optional access
+
+    function isStandaloneDisplay() {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    }
+
+    function isAppInstalled() {
+      return isStandaloneDisplay() || localStorage.getItem('app-installed') === 'true';
+    }
+
+    function markAppInstalled() {
+      localStorage.setItem('app-installed', 'true');
+    }
 
     function resize() {
       const dpr = window.devicePixelRatio || 1;
@@ -741,11 +758,33 @@
     }
 
     function setupInstallPrompt() {
+      const updateInstallUI = (installed) => {
+        if (!installButton) return;
+        installButton.hidden = installed;
+        if (installHintEl && installed) {
+          installHintEl.textContent = 'Installed ✔';
+        }
+      };
+
+      if (isAppInstalled()) {
+        if (isStandaloneDisplay()) {
+          markAppInstalled();
+        }
+        updateInstallUI(true);
+        return;
+      }
+
       window.addEventListener('beforeinstallprompt', (event) => {
+        if (isAppInstalled()) {
+          updateInstallUI(true);
+          return;
+        }
         event.preventDefault();
         pendingInstallEvent = event;
         installButton.hidden = false;
-        installHint.textContent = 'Install for quick launch and offline use.';
+        if (installHintEl) {
+          installHintEl.textContent = 'Install for quick launch and offline use.';
+        }
       });
 
       installButton.addEventListener('click', async () => {
@@ -753,22 +792,25 @@
         pendingInstallEvent.prompt();
         const result = await pendingInstallEvent.userChoice;
         if (result.outcome === 'accepted') {
-          installHint.textContent = 'Added! Launch me from your home screen.';
-          installButton.hidden = true;
+          markAppInstalled();
+          if (installHintEl) {
+            installHintEl.textContent = 'Added! Launch me from your home screen.';
+          }
+          updateInstallUI(true);
         }
         pendingInstallEvent = null;
       });
 
       window.addEventListener('appinstalled', () => {
-        installHint.textContent = 'Installed ✔';
-        installButton.hidden = true;
+        markAppInstalled();
+        updateInstallUI(true);
       });
     }
 
     function showIOSTips() {
       const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-      if (isIOS && !isStandalone) {
+      const standalone = isStandaloneDisplay();
+      if (isIOS && !standalone) {
         iosTip.hidden = false;
       }
     }
