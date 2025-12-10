@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1021">
   <meta name="description" content="MIDI piano color field visualizer">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -352,6 +353,10 @@
       transform: translateX(-50%);
       width: min(1100px, calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
       height: clamp(140px, 24vh, 220px);
+      bottom: 18px;
+      transform: translateX(-50%);
+      width: min(960px, calc(100vw - 24px));
+      height: 180px;
       z-index: 2;
       display: grid;
       grid-template-rows: 1fr;
@@ -378,6 +383,8 @@
       position: relative;
       gap: clamp(1px, 0.6vw, 6px);
       padding: clamp(8px, 2vh, 14px) clamp(8px, 3vw, 16px) clamp(10px, 2vh, 14px);
+      gap: 1px;
+      padding: 10px 12px 12px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
     }
 
@@ -407,6 +414,7 @@
       position: absolute;
       inset: 0;
       padding: clamp(8px, 2vh, 14px) clamp(8px, 3vw, 16px);
+      padding: 10px 12px;
       pointer-events: none;
     }
 
@@ -415,6 +423,8 @@
       top: clamp(8px, 1vh, 12px);
       width: var(--black-key-width);
       max-width: 60px;
+      top: 10px;
+      width: 38px;
       height: 62%;
       border-radius: 10px;
       background: linear-gradient(180deg, #1d2436, #0c101c);
@@ -464,7 +474,10 @@
           </button>
         </div>
 
-        <button id="install-button" hidden>Add to Home Screen</button>
+        <div class="install-area" aria-live="polite">
+          <span id="install-hint"></span>
+          <button id="install-button" hidden>Add to Home Screen</button>
+        </div>
       </div>
     </div>
     <div class="deck">
@@ -511,6 +524,7 @@
     const ctx = canvas.getContext('2d');
     const midiStatus = document.getElementById('midi-status');
     const notePill = document.getElementById('note-pill');
+    const modePill = document.getElementById('mode-pill');
     const info = document.getElementById('info');
     const installButton = document.getElementById('install-button');
     const installHint = document.getElementById('install-hint');
@@ -1118,6 +1132,7 @@
 
       let whiteCount = 0;
       blackKeyDefs = [];
+      const blackDefs = [];
 
       for (let note = PIANO_RANGE_START; note <= PIANO_RANGE_END; note++) {
         const name = NOTE_NAMES[note % 12];
@@ -1125,6 +1140,7 @@
 
         if (isBlack) {
           blackKeyDefs.push({ note, position: whiteCount - 0.5 });
+          blackDefs.push({ note, position: whiteCount - 0.5 });
         } else {
           const key = createKey(note, false);
           whiteKeysEl.appendChild(key);
@@ -1135,6 +1151,10 @@
 
       blackKeyDefs.forEach(({ note }) => {
         const key = createKey(note, true);
+      const totalWhites = whiteCount;
+      blackDefs.forEach(({ note, position }) => {
+        const key = createKey(note, true);
+        key.style.left = (position / totalWhites * 100) + '%';
         key.style.transform = 'translateX(-50%)';
         blackKeysEl.appendChild(key);
         pianoKeys.set(note, key);
@@ -1361,6 +1381,25 @@
         }
       };
 
+      const promptInstall = async () => {
+        if (!pendingInstallEvent) return;
+        pendingInstallEvent.prompt();
+        const result = await pendingInstallEvent.userChoice;
+        if (result.outcome === 'accepted') {
+          markAppInstalled();
+          if (installHintEl) {
+            installHintEl.textContent = 'Added! Launch me from your home screen.';
+          }
+          updateInstallUI(true);
+        } else {
+          if (installHintEl) {
+            installHintEl.textContent = 'You can add this app from your browser menu anytime.';
+          }
+          installButton.hidden = true;
+        }
+        pendingInstallEvent = null;
+      };
+
       if (isAppInstalled()) {
         if (isStandaloneDisplay()) {
           markAppInstalled();
@@ -1384,16 +1423,7 @@
 
       installButton.addEventListener('click', async () => {
         if (!pendingInstallEvent) return;
-        pendingInstallEvent.prompt();
-        const result = await pendingInstallEvent.userChoice;
-        if (result.outcome === 'accepted') {
-          markAppInstalled();
-          if (installHintEl) {
-            installHintEl.textContent = 'Added! Launch me from your home screen.';
-          }
-          updateInstallUI(true);
-        }
-        pendingInstallEvent = null;
+        promptInstall();
       });
 
       window.addEventListener('appinstalled', () => {
@@ -1445,6 +1475,7 @@
       updateKeyboardMetrics();
       positionBlackKeys();
     });
+    window.addEventListener('resize', resize);
     buildOnscreenKeyboard();
     setPianoVisibility(true);
     setUIVisibility(false);
