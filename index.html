@@ -442,6 +442,7 @@
     let recentNotes = [];
     let lastSwirlAt = 0;
     const SIMULTANEOUS_WINDOW_MS = 80;
+    const SWIRL_DURATION_MS = 10000;
     const installHintEl = installHint; // alias to guard optional access
 
     function isStandaloneDisplay() {
@@ -596,6 +597,12 @@
       ctx.restore();
     }
 
+    function clearSwirls() {
+      if (!activeSwirls.length) return;
+      activeSwirls = [];
+      lastSwirlAt = 0;
+    }
+
     function renderFrame(now) {
       currentColor = lerpColor(currentColor, targetColor, 0.065);
       currentIntensity = lerp(currentIntensity, targetIntensity, 0.05);
@@ -610,8 +617,9 @@
       ctx.fillStyle = overlay;
       ctx.fillRect(0, 0, viewW, viewH);
 
-      renderRipples(now || performance.now());
-      renderSwirls(now || performance.now());
+      const frameNow = now || performance.now();
+      renderRipples(frameNow);
+      renderSwirls(frameNow);
       animationFrameId = requestAnimationFrame(renderFrame);
     }
 
@@ -647,7 +655,7 @@
         colors: [leftColor, rightColor],
         intensity,
         start: performance.now(),
-        duration: 10000,
+        duration: SWIRL_DURATION_MS,
         spin: 0.9 + Math.random() * 0.5,
         phase: 0
       });
@@ -666,6 +674,7 @@
       const partner = [...recentNotes].reverse().find((n) => n !== entry && n.note !== note);
       if (partner) {
         lastSwirlAt = now;
+        clearSwirls();
         triggerSwirlAnimation(entry, partner);
       }
     }
@@ -848,7 +857,8 @@
         const command = status & 0xf0;
         if (command === 0x90 && velocity > 0) {
           if (activeSwirls.length) {
-            activeSwirls = [];
+            clearSwirls();
+            recentNotes = [];
           }
           const color = colorForNote(note);
           paint(color, velocity);
