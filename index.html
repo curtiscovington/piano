@@ -666,9 +666,13 @@
       });
     }
 
-    function registerSimultaneousHit(note, velocity) {
-      const now = performance.now();
+    function pruneRecentNotes(now = performance.now()) {
       recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
+      return now;
+    }
+
+    function registerSimultaneousHit(note, velocity) {
+      const now = pruneRecentNotes();
       const entry = { note, velocity, time: now };
       recentNotes.push(entry);
 
@@ -872,6 +876,7 @@
           notePill.style.background = 'rgba(255,255,255,0.08)';
           info.textContent = 'Painting ' + label;
         } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+          pruneRecentNotes();
           recentNotes = recentNotes.filter((entry) => entry.note !== note);
         }
       };
