@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1021">
   <meta name="description" content="MIDI piano color field visualizer">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -379,7 +380,10 @@
           </button>
         </div>
 
-        <button id="install-button" hidden>Add to Home Screen</button>
+        <div class="install-area" aria-live="polite">
+          <span id="install-hint"></span>
+          <button id="install-button" hidden>Add to Home Screen</button>
+        </div>
       </div>
     </div>
     <div class="deck">
@@ -420,6 +424,7 @@
     const ctx = canvas.getContext('2d');
     const midiStatus = document.getElementById('midi-status');
     const notePill = document.getElementById('note-pill');
+    const modePill = document.getElementById('mode-pill');
     const info = document.getElementById('info');
     const installButton = document.getElementById('install-button');
     const installHint = document.getElementById('install-hint');
@@ -1061,6 +1066,25 @@
         }
       };
 
+      const promptInstall = async () => {
+        if (!pendingInstallEvent) return;
+        pendingInstallEvent.prompt();
+        const result = await pendingInstallEvent.userChoice;
+        if (result.outcome === 'accepted') {
+          markAppInstalled();
+          if (installHintEl) {
+            installHintEl.textContent = 'Added! Launch me from your home screen.';
+          }
+          updateInstallUI(true);
+        } else {
+          if (installHintEl) {
+            installHintEl.textContent = 'You can add this app from your browser menu anytime.';
+          }
+          installButton.hidden = true;
+        }
+        pendingInstallEvent = null;
+      };
+
       if (isAppInstalled()) {
         if (isStandaloneDisplay()) {
           markAppInstalled();
@@ -1080,20 +1104,12 @@
         if (installHintEl) {
           installHintEl.textContent = 'Install for quick launch and offline use.';
         }
+        promptInstall();
       });
 
       installButton.addEventListener('click', async () => {
         if (!pendingInstallEvent) return;
-        pendingInstallEvent.prompt();
-        const result = await pendingInstallEvent.userChoice;
-        if (result.outcome === 'accepted') {
-          markAppInstalled();
-          if (installHintEl) {
-            installHintEl.textContent = 'Added! Launch me from your home screen.';
-          }
-          updateInstallUI(true);
-        }
-        pendingInstallEvent = null;
+        promptInstall();
       });
 
       window.addEventListener('appinstalled', () => {
