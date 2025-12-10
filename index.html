@@ -576,7 +576,6 @@
     let fireworkMode = false;
     let fireworks = [];
     const FIREWORK_DECAY_MS = 10000;
-    const SIMULTANEOUS_WINDOW_MS = 80;
     const installHintEl = installHint; // alias to guard optional access
     const PIANO_RANGE_START = 48; // C3
     const PIANO_RANGE_END = 72; // C5
@@ -933,11 +932,11 @@
 
     function registerSimultaneousHit(note, velocity) {
       const now = performance.now();
-      recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
+      recentNotes = recentNotes.filter((entry) => now - entry.time < 80);
       const entry = { note, velocity, time: now };
       recentNotes.push(entry);
 
-      if (now - lastSwirlAt < SIMULTANEOUS_WINDOW_MS) {
+      if (now - lastSwirlAt < 80) {
         return;
       }
 
