@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1021">
   <meta name="description" content="MIDI piano color field visualizer">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -461,7 +462,10 @@
           </button>
         </div>
 
-        <button id="install-button" hidden>Add to Home Screen</button>
+        <div class="install-area" aria-live="polite">
+          <span id="install-hint"></span>
+          <button id="install-button" hidden>Add to Home Screen</button>
+        </div>
       </div>
     </div>
     <div class="deck">
@@ -508,6 +512,7 @@
     const ctx = canvas.getContext('2d');
     const midiStatus = document.getElementById('midi-status');
     const notePill = document.getElementById('note-pill');
+    const modePill = document.getElementById('mode-pill');
     const info = document.getElementById('info');
     const installButton = document.getElementById('install-button');
     const installHint = document.getElementById('install-hint');
@@ -574,26 +579,10 @@
     const installHintEl = installHint; // alias to guard optional access
     const PIANO_RANGE_START = 48; // C3
     const PIANO_RANGE_END = 72; // C5
-    const KEYBOARD_NOTE_MAP = {
-      a: 60, // C4
-      w: 61, // C#4
-      s: 62, // D4
-      e: 63, // D#4
-      d: 64, // E4
-      f: 65, // F4
-      t: 66, // F#4
-      g: 67, // G4
-      y: 68, // G#4
-      h: 69, // A4
-      u: 70, // A#4
-      j: 71, // B4
-      k: 72  // C5
-    };
     const pianoKeys = new Map();
     let pianoVisible = false;
     const activePianoPresses = new Set();
     const pointerNotes = new Map();
-    const activeKeyboardNotes = new Map();
 
     function isStandaloneDisplay() {
       return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -1032,43 +1021,6 @@
       return key;
     }
 
-    function isTypingTarget(element) {
-      if (!element) return false;
-      const tag = element.tagName;
-      return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || element.isContentEditable;
-    }
-
-    function handleKeyboardDown(event) {
-      if (event.repeat || isTypingTarget(event.target)) return;
-      const key = event.key.toLowerCase();
-      const note = KEYBOARD_NOTE_MAP[key];
-      if (!note) return;
-
-      if (!pianoVisible) {
-        setPianoVisibility(true);
-      }
-
-      if (activeKeyboardNotes.has(key)) return;
-      activeKeyboardNotes.set(key, note);
-      event.preventDefault();
-      handleNoteOn(note, 115);
-    }
-
-    function handleKeyboardUp(event) {
-      if (isTypingTarget(event.target)) return;
-      const key = event.key.toLowerCase();
-      const note = activeKeyboardNotes.get(key) || KEYBOARD_NOTE_MAP[key];
-      if (!note) return;
-
-      activeKeyboardNotes.delete(key);
-      handleNoteOff(note);
-    }
-
-    function releaseAllKeyboardNotes() {
-      activeKeyboardNotes.forEach((note) => handleNoteOff(note));
-      activeKeyboardNotes.clear();
-    }
-
     function buildOnscreenKeyboard() {
       if (!piano || !whiteKeysEl || !blackKeysEl) return;
 
@@ -1320,6 +1272,25 @@
         }
       };
 
+      const promptInstall = async () => {
+        if (!pendingInstallEvent) return;
+        pendingInstallEvent.prompt();
+        const result = await pendingInstallEvent.userChoice;
+        if (result.outcome === 'accepted') {
+          markAppInstalled();
+          if (installHintEl) {
+            installHintEl.textContent = 'Added! Launch me from your home screen.';
+          }
+          updateInstallUI(true);
+        } else {
+          if (installHintEl) {
+            installHintEl.textContent = 'You can add this app from your browser menu anytime.';
+          }
+          installButton.hidden = true;
+        }
+        pendingInstallEvent = null;
+      };
+
       if (isAppInstalled()) {
         if (isStandaloneDisplay()) {
           markAppInstalled();
@@ -1343,16 +1314,7 @@
 
       installButton.addEventListener('click', async () => {
         if (!pendingInstallEvent) return;
-        pendingInstallEvent.prompt();
-        const result = await pendingInstallEvent.userChoice;
-        if (result.outcome === 'accepted') {
-          markAppInstalled();
-          if (installHintEl) {
-            installHintEl.textContent = 'Added! Launch me from your home screen.';
-          }
-          updateInstallUI(true);
-        }
-        pendingInstallEvent = null;
+        promptInstall();
       });
 
       window.addEventListener('appinstalled', () => {
@@ -1394,10 +1356,6 @@
         setPianoVisibility(!pianoVisible);
       });
     }
-
-    window.addEventListener('keydown', handleKeyboardDown);
-    window.addEventListener('keyup', handleKeyboardUp);
-    window.addEventListener('blur', releaseAllKeyboardNotes);
 
     window.addEventListener('resize', resize);
     buildOnscreenKeyboard();
