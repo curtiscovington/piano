@@ -424,6 +424,7 @@
     };
 
     let colors = [...defaultPalette.colors];
+    let octavePalettes = new Map();
     let palettes = [];
     let activePaletteId = defaultPalette.id;
     let colorInputs = [];
@@ -487,6 +488,88 @@
         b: int & 255
       };
     }
+
+    function rgbToHex({ r, g, b }) {
+      const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
+      return '#' + [clamp(r), clamp(g), clamp(b)].map((value) => value.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+
+    function mixWith(base, target, amount) {
+      return {
+        r: Math.round(base.r + (target.r - base.r) * amount),
+        g: Math.round(base.g + (target.g - base.g) * amount),
+        b: Math.round(base.b + (target.b - base.b) * amount)
+      };
+    }
+
+    function boostSaturation({ r, g, b }, factor) {
+      const rn = r / 255;
+      const gn = g / 255;
+      const bn = b / 255;
+      const max = Math.max(rn, gn, bn);
+      const min = Math.min(rn, gn, bn);
+      const l = (max + min) / 2;
+      if (max === min) return { r, g, b };
+
+      const d = max - min;
+      let h;
+      switch (max) {
+        case rn:
+          h = (gn - bn) / d + (gn < bn ? 6 : 0);
+          break;
+        case gn:
+          h = (bn - rn) / d + 2;
+          break;
+        default:
+          h = (rn - gn) / d + 4;
+          break;
+      }
+      h /= 6;
+
+      let s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      s = Math.min(1, s * factor);
+
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      const hue2rgb = (t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+
+      return {
+        r: Math.round(hue2rgb(h + 1 / 3) * 255),
+        g: Math.round(hue2rgb(h) * 255),
+        b: Math.round(hue2rgb(h - 1 / 3) * 255)
+      };
+    }
+
+    function deriveOctavePalettes(baseColors) {
+      const baseRgb = baseColors.map(hexToRgb);
+      const darkTarget = hexToRgb('#0b1021');
+      const darker = baseRgb
+        .map((color) => mixWith(color, darkTarget, 0.44))
+        .map((color) => boostSaturation(color, 1.1))
+        .map(rgbToHex);
+      const lighter = baseRgb
+        .map((color) => mixWith(color, { r: 255, g: 255, b: 255 }, 0.38))
+        .map((color) => boostSaturation(color, 0.9))
+        .map(rgbToHex);
+      return new Map([
+        [3, darker],
+        [5, lighter]
+      ]);
+    }
+
+    function setPaletteColors(baseColors) {
+      colors = [...baseColors];
+      octavePalettes = deriveOctavePalettes(colors);
+    }
+
+    setPaletteColors(colors);
 
     function rgbaString({ r, g, b }, alpha = 1) {
       return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
@@ -668,7 +751,15 @@
     }
 
     function colorForNote(note) {
-      return colors[note % colors.length];
+      const octave = Math.floor(note / 12) - 1;
+      const index = note % colors.length;
+      const variantPalette = octavePalettes.get(octave);
+
+      if (variantPalette) {
+        return variantPalette[index];
+      }
+
+      return colors[index];
     }
 
     function describeNote(note) {
@@ -712,7 +803,7 @@
     function applyPaletteById(id) {
       const palette = palettes.find((p) => p.id === id) || defaultPalette;
       activePaletteId = palette.id;
-      colors = [...palette.colors];
+      setPaletteColors(palette.colors);
       refreshColorInputs();
       persistPalettes();
       showPaletteStatus('Using "' + palette.name + '" palette.');
@@ -744,7 +835,9 @@
         input.value = colors[idx];
         input.dataset.index = idx;
         input.addEventListener('input', (event) => {
-          colors[Number(event.target.dataset.index)] = event.target.value;
+          const updated = [...colors];
+          updated[Number(event.target.dataset.index)] = event.target.value;
+          setPaletteColors(updated);
         });
 
         row.appendChild(label);
@@ -792,7 +885,7 @@
       const activeFromStorage = palettes.find((p) => p.id === storedActive);
       const paletteToUse = activeFromStorage || defaultPalette;
       activePaletteId = paletteToUse.id;
-      colors = [...paletteToUse.colors];
+      setPaletteColors(paletteToUse.colors);
 
       buildPaletteGrid();
       syncPaletteSelect();
