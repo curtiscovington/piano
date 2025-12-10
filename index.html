@@ -475,6 +475,8 @@
     let activeSwirls = [];
     let recentNotes = [];
     let lastSwirlAt = 0;
+    const SIMULTANEOUS_WINDOW_MS = 80;
+    const SWIRL_DURATION_MS = 10000;
     let fireworkMode = false;
     let fireworks = [];
     const FIREWORK_DECAY_MS = 10000;
@@ -1034,6 +1036,9 @@
         const [status, note, velocity] = message.data;
         const command = status & 0xf0;
         if (command === 0x90 && velocity > 0) {
+          if (activeSwirls.length || recentNotes.length) {
+            resetIntervalState();
+          }
           const color = colorForNote(note);
           paint(color, velocity);
           registerSimultaneousHit(note, velocity);
@@ -1041,6 +1046,9 @@
           notePill.textContent = label;
           notePill.style.background = 'rgba(255,255,255,0.08)';
           info.textContent = 'Painting ' + label;
+        } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+          pruneRecentNotes();
+          recentNotes = recentNotes.filter((entry) => entry.note !== note);
         }
       };
     }
