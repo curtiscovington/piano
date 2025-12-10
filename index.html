@@ -23,6 +23,7 @@
       --accent: #77ffd0;
       --accent-2: #7cc6ff;
       --glow: rgba(119, 255, 208, 0.18);
+      --black-key-width: 38px;
     }
 
     * { box-sizing: border-box; }
@@ -348,6 +349,10 @@
     .piano {
       position: fixed;
       left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom, 0px) + 10px);
+      transform: translateX(-50%);
+      width: min(1100px, calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+      height: clamp(140px, 24vh, 220px);
       bottom: 18px;
       transform: translateX(-50%);
       width: min(960px, calc(100vw - 24px));
@@ -357,6 +362,7 @@
       grid-template-rows: 1fr;
       pointer-events: auto;
       user-select: none;
+      padding: 0 6px;
     }
 
     .piano[hidden] { display: none; }
@@ -375,6 +381,8 @@
       display: flex;
       height: 100%;
       position: relative;
+      gap: clamp(1px, 0.6vw, 6px);
+      padding: clamp(8px, 2vh, 14px) clamp(8px, 3vw, 16px) clamp(10px, 2vh, 14px);
       gap: 1px;
       padding: 10px 12px 12px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
@@ -405,12 +413,16 @@
     .black-keys {
       position: absolute;
       inset: 0;
+      padding: clamp(8px, 2vh, 14px) clamp(8px, 3vw, 16px);
       padding: 10px 12px;
       pointer-events: none;
     }
 
     .key.black {
       position: absolute;
+      top: clamp(8px, 1vh, 12px);
+      width: var(--black-key-width);
+      max-width: 60px;
       top: 10px;
       width: 38px;
       height: 62%;
@@ -576,14 +588,30 @@
     let fireworkMode = false;
     let fireworks = [];
     const FIREWORK_DECAY_MS = 10000;
-    const SIMULTANEOUS_WINDOW_MS = 80;
     const installHintEl = installHint; // alias to guard optional access
     const PIANO_RANGE_START = 48; // C3
     const PIANO_RANGE_END = 72; // C5
+    const KEYBOARD_NOTE_MAP = {
+      a: 60, // C4
+      w: 61, // C#4
+      s: 62, // D4
+      e: 63, // D#4
+      d: 64, // E4
+      f: 65, // F4
+      t: 66, // F#4
+      g: 67, // G4
+      y: 68, // G#4
+      h: 69, // A4
+      u: 70, // A#4
+      j: 71, // B4
+      k: 72  // C5
+    };
     const pianoKeys = new Map();
     let pianoVisible = false;
     const activePianoPresses = new Set();
     const pointerNotes = new Map();
+    const activeKeyboardNotes = new Map();
+    let blackKeyDefs = [];
 
     function isStandaloneDisplay() {
       return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -933,11 +961,11 @@
 
     function registerSimultaneousHit(note, velocity) {
       const now = performance.now();
-      recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
+      recentNotes = recentNotes.filter((entry) => now - entry.time < 80);
       const entry = { note, velocity, time: now };
       recentNotes.push(entry);
 
-      if (now - lastSwirlAt < SIMULTANEOUS_WINDOW_MS) {
+      if (now - lastSwirlAt < 80) {
         return;
       }
 
@@ -1022,6 +1050,79 @@
       return key;
     }
 
+    function isTypingTarget(element) {
+      if (!element) return false;
+      const tag = element.tagName;
+      return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || element.isContentEditable;
+    }
+
+    function handleKeyboardDown(event) {
+      if (event.repeat || isTypingTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const note = KEYBOARD_NOTE_MAP[key];
+      if (!note) return;
+
+      if (!pianoVisible) {
+        setPianoVisibility(true);
+      }
+
+      if (activeKeyboardNotes.has(key)) return;
+      activeKeyboardNotes.set(key, note);
+      event.preventDefault();
+      handleNoteOn(note, 115);
+    }
+
+    function handleKeyboardUp(event) {
+      if (isTypingTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const note = activeKeyboardNotes.get(key) || KEYBOARD_NOTE_MAP[key];
+      if (!note) return;
+
+      activeKeyboardNotes.delete(key);
+      handleNoteOff(note);
+    }
+
+    function releaseAllKeyboardNotes() {
+      activeKeyboardNotes.forEach((note) => handleNoteOff(note));
+      activeKeyboardNotes.clear();
+    }
+
+    function updateKeyboardMetrics() {
+      if (!whiteKeysEl) return;
+      const sampleWhite = whiteKeysEl.querySelector('.key.white');
+      if (!sampleWhite) return;
+
+      const whiteWidth = sampleWhite.getBoundingClientRect().width;
+      const blackWidth = Math.max(18, Math.min(whiteWidth * 0.64, 46));
+      document.documentElement.style.setProperty('--black-key-width', blackWidth + 'px');
+    }
+
+    function positionBlackKeys() {
+      if (!whiteKeysEl || !blackKeysEl || !blackKeyDefs.length) return;
+
+      const whiteRects = Array.from(whiteKeysEl.children).map((el) => el.getBoundingClientRect());
+      const containerRect = whiteKeysEl.getBoundingClientRect();
+
+      blackKeyDefs.forEach(({ note, position }) => {
+        const key = pianoKeys.get(note);
+        if (!key) return;
+
+        const leftIndex = Math.max(0, Math.floor(position));
+        const rightIndex = Math.min(whiteRects.length - 1, Math.ceil(position));
+        const leftRect = whiteRects[leftIndex];
+        const rightRect = whiteRects[rightIndex];
+
+        if (!leftRect || !rightRect || !containerRect.width) return;
+
+        const center = rightIndex === leftIndex
+          ? (leftRect.left + leftRect.right) / 2
+          : leftRect.right + (rightRect.left - leftRect.right) / 2;
+
+        const percent = ((center - containerRect.left) / containerRect.width) * 100;
+        key.style.left = percent + '%';
+      });
+    }
+
     function buildOnscreenKeyboard() {
       if (!piano || !whiteKeysEl || !blackKeysEl) return;
 
@@ -1030,6 +1131,7 @@
       pianoKeys.clear();
 
       let whiteCount = 0;
+      blackKeyDefs = [];
       const blackDefs = [];
 
       for (let note = PIANO_RANGE_START; note <= PIANO_RANGE_END; note++) {
@@ -1037,6 +1139,7 @@
         const isBlack = name.includes('#');
 
         if (isBlack) {
+          blackKeyDefs.push({ note, position: whiteCount - 0.5 });
           blackDefs.push({ note, position: whiteCount - 0.5 });
         } else {
           const key = createKey(note, false);
@@ -1046,6 +1149,8 @@
         }
       }
 
+      blackKeyDefs.forEach(({ note }) => {
+        const key = createKey(note, true);
       const totalWhites = whiteCount;
       blackDefs.forEach(({ note, position }) => {
         const key = createKey(note, true);
@@ -1054,6 +1159,9 @@
         blackKeysEl.appendChild(key);
         pianoKeys.set(note, key);
       });
+
+      updateKeyboardMetrics();
+      positionBlackKeys();
     }
 
     function setPianoVisibility(visible) {
@@ -1358,6 +1466,15 @@
       });
     }
 
+    window.addEventListener('keydown', handleKeyboardDown);
+    window.addEventListener('keyup', handleKeyboardUp);
+    window.addEventListener('blur', releaseAllKeyboardNotes);
+
+    window.addEventListener('resize', () => {
+      resize();
+      updateKeyboardMetrics();
+      positionBlackKeys();
+    });
     window.addEventListener('resize', resize);
     buildOnscreenKeyboard();
     setPianoVisibility(true);
