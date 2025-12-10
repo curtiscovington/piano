@@ -22,6 +22,7 @@
       --accent: #77ffd0;
       --accent-2: #7cc6ff;
       --glow: rgba(119, 255, 208, 0.18);
+      --black-key-width: 38px;
     }
 
     * { box-sizing: border-box; }
@@ -344,6 +345,87 @@
       pointer-events: none;
     }
 
+    .piano {
+      position: fixed;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom, 0px) + 10px);
+      transform: translateX(-50%);
+      width: min(1100px, calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+      height: clamp(140px, 24vh, 220px);
+      z-index: 2;
+      display: grid;
+      grid-template-rows: 1fr;
+      pointer-events: auto;
+      user-select: none;
+      padding: 0 6px;
+    }
+
+    .piano[hidden] { display: none; }
+
+    .keyboard-shell {
+      position: relative;
+      border-radius: 14px;
+      background: rgba(10, 14, 30, 0.86);
+      border: 1px solid var(--stroke);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+      backdrop-filter: blur(12px) saturate(140%);
+    }
+
+    .white-keys {
+      display: flex;
+      height: 100%;
+      position: relative;
+      gap: clamp(1px, 0.6vw, 6px);
+      padding: clamp(8px, 2vh, 14px) clamp(8px, 3vw, 16px) clamp(10px, 2vh, 14px);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+    }
+
+    .key {
+      border: none;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      font: inherit;
+      position: relative;
+      transition: transform 0.05s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+
+    .key:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    .key.white {
+      flex: 1;
+      height: 100%;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #fdfefe, #d6dae8);
+      box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.14), 0 10px 22px rgba(0, 0, 0, 0.28);
+    }
+
+    .key.white.active { background: linear-gradient(180deg, #f2f5ff, #c8d1ff); }
+
+    .black-keys {
+      position: absolute;
+      inset: 0;
+      padding: clamp(8px, 2vh, 14px) clamp(8px, 3vw, 16px);
+      pointer-events: none;
+    }
+
+    .key.black {
+      position: absolute;
+      top: clamp(8px, 1vh, 12px);
+      width: var(--black-key-width);
+      max-width: 60px;
+      height: 62%;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #1d2436, #0c101c);
+      box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.32), 0 12px 18px rgba(0, 0, 0, 0.55);
+      pointer-events: auto;
+    }
+
+    .key.black.active { background: linear-gradient(180deg, #2a3248, #11182a); }
+
+    .key:active { transform: translateY(1px); }
+
     @media (max-width: 960px) {
       .deck { grid-template-columns: 1fr; }
       .section-header { flex-direction: column; align-items: flex-start; }
@@ -376,6 +458,9 @@
         <div class="action-row">
           <button id="firework-toggle" class="mode-button" aria-pressed="false" aria-label="Toggle firework mode">
             🧨 Fireworks off
+          </button>
+          <button id="piano-toggle" class="mode-button" aria-pressed="false" aria-label="Toggle onscreen piano">
+            🎹 Onscreen piano off
           </button>
         </div>
 
@@ -413,6 +498,12 @@
       </div>
     </div>
   </div>
+  <div class="piano" id="piano" hidden aria-label="Onscreen piano keyboard">
+    <div class="keyboard-shell">
+      <div class="white-keys" id="white-keys"></div>
+      <div class="black-keys" id="black-keys"></div>
+    </div>
+  </div>
   <div class="footnote" id="info">MIDI not initialized yet.</div>
 
   <script>
@@ -433,6 +524,10 @@
     const paletteMessage = document.getElementById('palette-message');
     const uiToggle = document.getElementById('ui-toggle');
     const fireworkToggle = document.getElementById('firework-toggle');
+    const pianoToggle = document.getElementById('piano-toggle');
+    const piano = document.getElementById('piano');
+    const whiteKeysEl = document.getElementById('white-keys');
+    const blackKeysEl = document.getElementById('black-keys');
 
     const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const defaultPalette = {
@@ -479,8 +574,30 @@
     let fireworkMode = false;
     let fireworks = [];
     const FIREWORK_DECAY_MS = 10000;
-    const SIMULTANEOUS_WINDOW_MS = 80;
     const installHintEl = installHint; // alias to guard optional access
+    const PIANO_RANGE_START = 48; // C3
+    const PIANO_RANGE_END = 72; // C5
+    const KEYBOARD_NOTE_MAP = {
+      a: 60, // C4
+      w: 61, // C#4
+      s: 62, // D4
+      e: 63, // D#4
+      d: 64, // E4
+      f: 65, // F4
+      t: 66, // F#4
+      g: 67, // G4
+      y: 68, // G#4
+      h: 69, // A4
+      u: 70, // A#4
+      j: 71, // B4
+      k: 72  // C5
+    };
+    const pianoKeys = new Map();
+    let pianoVisible = false;
+    const activePianoPresses = new Set();
+    const pointerNotes = new Map();
+    const activeKeyboardNotes = new Map();
+    let blackKeyDefs = [];
 
     function isStandaloneDisplay() {
       return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -830,11 +947,11 @@
 
     function registerSimultaneousHit(note, velocity) {
       const now = performance.now();
-      recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
+      recentNotes = recentNotes.filter((entry) => now - entry.time < 80);
       const entry = { note, velocity, time: now };
       recentNotes.push(entry);
 
-      if (now - lastSwirlAt < SIMULTANEOUS_WINDOW_MS) {
+      if (now - lastSwirlAt < 80) {
         return;
       }
 
@@ -842,6 +959,199 @@
       if (partner) {
         lastSwirlAt = now;
         triggerSwirlAnimation(entry, partner);
+      }
+    }
+
+    function activateKey(note) {
+      const key = pianoKeys.get(note);
+      if (key) {
+        key.classList.add('active');
+      }
+    }
+
+    function deactivateKey(note) {
+      const key = pianoKeys.get(note);
+      if (key) {
+        key.classList.remove('active');
+      }
+    }
+
+    function resetIntervalState() {
+      activeSwirls = [];
+      recentNotes = [];
+      lastSwirlAt = 0;
+    }
+
+    function handleNoteOn(note, velocity = 100) {
+      if (activeSwirls.length || recentNotes.length) {
+        resetIntervalState();
+      }
+
+      const color = colorForNote(note);
+      paint(color, velocity);
+      registerSimultaneousHit(note, velocity);
+      const label = describeNote(note) + ' · velocity ' + velocity;
+      notePill.textContent = label;
+      notePill.style.background = 'rgba(255,255,255,0.08)';
+      info.textContent = 'Painting ' + label;
+      activateKey(note);
+    }
+
+    function handleNoteOff(note) {
+      pruneRecentNotes();
+      recentNotes = recentNotes.filter((entry) => entry.note !== note);
+      deactivateKey(note);
+    }
+
+    function createKey(note, isBlack) {
+      const key = document.createElement('button');
+      key.className = 'key ' + (isBlack ? 'black' : 'white');
+      key.dataset.note = String(note);
+      key.setAttribute('aria-label', describeNote(note));
+      key.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        if (key.setPointerCapture) {
+          key.setPointerCapture(event.pointerId);
+        }
+        const pointerKey = event.pointerId + ':' + note;
+        if (activePianoPresses.has(pointerKey)) return;
+        activePianoPresses.add(pointerKey);
+        pointerNotes.set(event.pointerId, note);
+        handleNoteOn(note, 110);
+      });
+
+      const endPress = (event) => {
+        const storedNote = pointerNotes.get(event.pointerId);
+        if (storedNote === undefined) return;
+        pointerNotes.delete(event.pointerId);
+        const pointerKey = event.pointerId + ':' + storedNote;
+        activePianoPresses.delete(pointerKey);
+        handleNoteOff(storedNote);
+      };
+
+      key.addEventListener('pointerup', endPress);
+      key.addEventListener('pointercancel', endPress);
+      key.addEventListener('pointerleave', endPress);
+
+      return key;
+    }
+
+    function isTypingTarget(element) {
+      if (!element) return false;
+      const tag = element.tagName;
+      return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || element.isContentEditable;
+    }
+
+    function handleKeyboardDown(event) {
+      if (event.repeat || isTypingTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const note = KEYBOARD_NOTE_MAP[key];
+      if (!note) return;
+
+      if (!pianoVisible) {
+        setPianoVisibility(true);
+      }
+
+      if (activeKeyboardNotes.has(key)) return;
+      activeKeyboardNotes.set(key, note);
+      event.preventDefault();
+      handleNoteOn(note, 115);
+    }
+
+    function handleKeyboardUp(event) {
+      if (isTypingTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const note = activeKeyboardNotes.get(key) || KEYBOARD_NOTE_MAP[key];
+      if (!note) return;
+
+      activeKeyboardNotes.delete(key);
+      handleNoteOff(note);
+    }
+
+    function releaseAllKeyboardNotes() {
+      activeKeyboardNotes.forEach((note) => handleNoteOff(note));
+      activeKeyboardNotes.clear();
+    }
+
+    function updateKeyboardMetrics() {
+      if (!whiteKeysEl) return;
+      const sampleWhite = whiteKeysEl.querySelector('.key.white');
+      if (!sampleWhite) return;
+
+      const whiteWidth = sampleWhite.getBoundingClientRect().width;
+      const blackWidth = Math.max(18, Math.min(whiteWidth * 0.64, 46));
+      document.documentElement.style.setProperty('--black-key-width', blackWidth + 'px');
+    }
+
+    function positionBlackKeys() {
+      if (!whiteKeysEl || !blackKeysEl || !blackKeyDefs.length) return;
+
+      const whiteRects = Array.from(whiteKeysEl.children).map((el) => el.getBoundingClientRect());
+      const containerRect = whiteKeysEl.getBoundingClientRect();
+
+      blackKeyDefs.forEach(({ note, position }) => {
+        const key = pianoKeys.get(note);
+        if (!key) return;
+
+        const leftIndex = Math.max(0, Math.floor(position));
+        const rightIndex = Math.min(whiteRects.length - 1, Math.ceil(position));
+        const leftRect = whiteRects[leftIndex];
+        const rightRect = whiteRects[rightIndex];
+
+        if (!leftRect || !rightRect || !containerRect.width) return;
+
+        const center = rightIndex === leftIndex
+          ? (leftRect.left + leftRect.right) / 2
+          : leftRect.right + (rightRect.left - leftRect.right) / 2;
+
+        const percent = ((center - containerRect.left) / containerRect.width) * 100;
+        key.style.left = percent + '%';
+      });
+    }
+
+    function buildOnscreenKeyboard() {
+      if (!piano || !whiteKeysEl || !blackKeysEl) return;
+
+      whiteKeysEl.innerHTML = '';
+      blackKeysEl.innerHTML = '';
+      pianoKeys.clear();
+
+      let whiteCount = 0;
+      blackKeyDefs = [];
+
+      for (let note = PIANO_RANGE_START; note <= PIANO_RANGE_END; note++) {
+        const name = NOTE_NAMES[note % 12];
+        const isBlack = name.includes('#');
+
+        if (isBlack) {
+          blackKeyDefs.push({ note, position: whiteCount - 0.5 });
+        } else {
+          const key = createKey(note, false);
+          whiteKeysEl.appendChild(key);
+          pianoKeys.set(note, key);
+          whiteCount += 1;
+        }
+      }
+
+      blackKeyDefs.forEach(({ note }) => {
+        const key = createKey(note, true);
+        key.style.transform = 'translateX(-50%)';
+        blackKeysEl.appendChild(key);
+        pianoKeys.set(note, key);
+      });
+
+      updateKeyboardMetrics();
+      positionBlackKeys();
+    }
+
+    function setPianoVisibility(visible) {
+      pianoVisible = visible;
+      if (pianoToggle) {
+        pianoToggle.setAttribute('aria-pressed', String(visible));
+        pianoToggle.textContent = visible ? '🎹 Onscreen piano on' : '🎹 Onscreen piano off';
+      }
+      if (piano) {
+        piano.hidden = !visible;
       }
     }
 
@@ -1035,19 +1345,9 @@
         const [status, note, velocity] = message.data;
         const command = status & 0xf0;
         if (command === 0x90 && velocity > 0) {
-          if (activeSwirls.length || recentNotes.length) {
-            resetIntervalState();
-          }
-          const color = colorForNote(note);
-          paint(color, velocity);
-          registerSimultaneousHit(note, velocity);
-          const label = describeNote(note) + ' · velocity ' + velocity;
-          notePill.textContent = label;
-          notePill.style.background = 'rgba(255,255,255,0.08)';
-          info.textContent = 'Painting ' + label;
+          handleNoteOn(note, velocity);
         } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-          pruneRecentNotes();
-          recentNotes = recentNotes.filter((entry) => entry.note !== note);
+          handleNoteOff(note);
         }
       };
     }
@@ -1130,7 +1430,23 @@
       });
     }
 
-    window.addEventListener('resize', resize);
+    if (pianoToggle) {
+      pianoToggle.addEventListener('click', () => {
+        setPianoVisibility(!pianoVisible);
+      });
+    }
+
+    window.addEventListener('keydown', handleKeyboardDown);
+    window.addEventListener('keyup', handleKeyboardUp);
+    window.addEventListener('blur', releaseAllKeyboardNotes);
+
+    window.addEventListener('resize', () => {
+      resize();
+      updateKeyboardMetrics();
+      positionBlackKeys();
+    });
+    buildOnscreenKeyboard();
+    setPianoVisibility(true);
     setUIVisibility(false);
     resize();
     initPaletteControls();
