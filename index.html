@@ -1034,8 +1034,9 @@
     }
 
     function isTypingTarget(element) {
-      const tag = element?.tagName;
-      return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || element?.isContentEditable;
+      if (!element) return false;
+      const tag = element.tagName;
+      return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || element.isContentEditable;
     }
 
     function handleKeyboardDown(event) {
@@ -1055,6 +1056,7 @@
     }
 
     function handleKeyboardUp(event) {
+      if (isTypingTarget(event.target)) return;
       const key = event.key.toLowerCase();
       const note = activeKeyboardNotes.get(key) || KEYBOARD_NOTE_MAP[key];
       if (!note) return;
