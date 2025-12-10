@@ -424,6 +424,8 @@
     };
 
     let colors = [...defaultPalette.colors];
+    let lowerOctaveColors = [];
+    let upperOctaveColors = [];
     let palettes = [];
     let activePaletteId = defaultPalette.id;
     let colorInputs = [];
@@ -487,6 +489,38 @@
         b: int & 255
       };
     }
+
+    function rgbToHex({ r, g, b }) {
+      const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
+      return '#' + [clamp(r), clamp(g), clamp(b)].map((value) => value.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+
+    function mixWith(base, target, amount) {
+      return {
+        r: Math.round(base.r + (target.r - base.r) * amount),
+        g: Math.round(base.g + (target.g - base.g) * amount),
+        b: Math.round(base.b + (target.b - base.b) * amount)
+      };
+    }
+
+    function deriveOctavePalettes(baseColors) {
+      const baseRgb = baseColors.map(hexToRgb);
+      const darker = baseRgb.map((color) => mixWith(color, { r: 0, g: 0, b: 0 }, 0.32));
+      const lighter = baseRgb.map((color) => mixWith(color, { r: 255, g: 255, b: 255 }, 0.24));
+      return {
+        lower: darker.map(rgbToHex),
+        upper: lighter.map(rgbToHex)
+      };
+    }
+
+    function setPaletteColors(baseColors) {
+      colors = [...baseColors];
+      const variants = deriveOctavePalettes(colors);
+      lowerOctaveColors = variants.lower;
+      upperOctaveColors = variants.upper;
+    }
+
+    setPaletteColors(colors);
 
     function rgbaString({ r, g, b }, alpha = 1) {
       return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
@@ -668,7 +702,18 @@
     }
 
     function colorForNote(note) {
-      return colors[note % colors.length];
+      const octave = Math.floor(note / 12) - 1;
+      const index = note % colors.length;
+
+      if (octave === 3 && lowerOctaveColors.length) {
+        return lowerOctaveColors[index];
+      }
+
+      if (octave === 5 && upperOctaveColors.length) {
+        return upperOctaveColors[index];
+      }
+
+      return colors[index];
     }
 
     function describeNote(note) {
@@ -712,7 +757,7 @@
     function applyPaletteById(id) {
       const palette = palettes.find((p) => p.id === id) || defaultPalette;
       activePaletteId = palette.id;
-      colors = [...palette.colors];
+      setPaletteColors(palette.colors);
       refreshColorInputs();
       persistPalettes();
       showPaletteStatus('Using "' + palette.name + '" palette.');
@@ -744,7 +789,9 @@
         input.value = colors[idx];
         input.dataset.index = idx;
         input.addEventListener('input', (event) => {
-          colors[Number(event.target.dataset.index)] = event.target.value;
+          const updated = [...colors];
+          updated[Number(event.target.dataset.index)] = event.target.value;
+          setPaletteColors(updated);
         });
 
         row.appendChild(label);
@@ -792,7 +839,7 @@
       const activeFromStorage = palettes.find((p) => p.id === storedActive);
       const paletteToUse = activeFromStorage || defaultPalette;
       activePaletteId = paletteToUse.id;
-      colors = [...paletteToUse.colors];
+      setPaletteColors(paletteToUse.colors);
 
       buildPaletteGrid();
       syncPaletteSelect();
