@@ -603,6 +603,11 @@
       lastSwirlAt = 0;
     }
 
+    function resetIntervalState() {
+      clearSwirls();
+      recentNotes = [];
+    }
+
     function renderFrame(now) {
       currentColor = lerpColor(currentColor, targetColor, 0.065);
       currentIntensity = lerp(currentIntensity, targetIntensity, 0.05);
@@ -674,7 +679,7 @@
       const partner = [...recentNotes].reverse().find((n) => n !== entry && n.note !== note);
       if (partner) {
         lastSwirlAt = now;
-        clearSwirls();
+        resetIntervalState();
         triggerSwirlAnimation(entry, partner);
       }
     }
@@ -856,9 +861,8 @@
         const [status, note, velocity] = message.data;
         const command = status & 0xf0;
         if (command === 0x90 && velocity > 0) {
-          if (activeSwirls.length) {
-            clearSwirls();
-            recentNotes = [];
+          if (activeSwirls.length || recentNotes.length) {
+            resetIntervalState();
           }
           const color = colorForNote(note);
           paint(color, velocity);
@@ -867,6 +871,8 @@
           notePill.textContent = label;
           notePill.style.background = 'rgba(255,255,255,0.08)';
           info.textContent = 'Painting ' + label;
+        } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+          recentNotes = recentNotes.filter((entry) => entry.note !== note);
         }
       };
     }
