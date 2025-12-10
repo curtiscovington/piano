@@ -107,8 +107,35 @@
 
     .primary {
       display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .mode-button {
+      background: transparent;
+      border: 1px solid var(--stroke);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      display: inline-flex;
       align-items: center;
-      gap: 14px;
+      gap: 8px;
+    }
+
+    .mode-button[aria-pressed="true"] {
+      border-color: var(--accent);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(119, 255, 208, 0.3);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    body.firework-mode {
+      background: #000;
     }
 
     .title-block h1 {
@@ -345,11 +372,15 @@
           <span class="pill" id="note-pill">No notes yet</span>
           <span class="pill ghost" id="mode-pill">Velocity reactive</span>
         </div>
-        
+
+        <div class="action-row">
+          <button id="firework-toggle" class="mode-button" aria-pressed="false" aria-label="Toggle firework mode">
+            🧨 Fireworks off
+          </button>
+        </div>
+
         <button id="install-button" hidden>Add to Home Screen</button>
-      
       </div>
-      
     </div>
     <div class="deck">
       <div class="card palette-card" aria-label="Color palette controls">
@@ -401,6 +432,7 @@
     const updatePaletteButton = document.getElementById('update-palette');
     const paletteMessage = document.getElementById('palette-message');
     const uiToggle = document.getElementById('ui-toggle');
+    const fireworkToggle = document.getElementById('firework-toggle');
 
     const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const defaultPalette = {
@@ -424,6 +456,8 @@
     };
 
     let colors = [...defaultPalette.colors];
+    let lowerOctaveColors = [];
+    let upperOctaveColors = [];
     let palettes = [];
     let activePaletteId = defaultPalette.id;
     let colorInputs = [];
@@ -443,6 +477,10 @@
     let lastSwirlAt = 0;
     const SIMULTANEOUS_WINDOW_MS = 80;
     const SWIRL_DURATION_MS = 10000;
+    let fireworkMode = false;
+    let fireworks = [];
+    const FIREWORK_DECAY_MS = 10000;
+    const SIMULTANEOUS_WINDOW_MS = 80;
     const installHintEl = installHint; // alias to guard optional access
 
     function isStandaloneDisplay() {
@@ -476,6 +514,29 @@
       uiToggle.setAttribute('aria-label', visible ? 'Hide controls' : 'Show controls');
     }
 
+    function setFireworkMode(enabled) {
+      fireworkMode = enabled;
+      document.body.classList.toggle('firework-mode', enabled);
+      if (fireworkToggle) {
+        fireworkToggle.setAttribute('aria-pressed', String(enabled));
+        fireworkToggle.textContent = enabled ? '🧨 Fireworks on' : '🧨 Fireworks off';
+      }
+
+      if (enabled) {
+        activeRipples = [];
+        activeSwirls = [];
+        targetColor = hexToRgb('#000000');
+        targetIntensity = 0.9;
+        modePill.textContent = 'Firework sky';
+        info.textContent = 'Firework mode: black backdrop with glittering bursts.';
+      } else {
+        fireworks = [];
+        targetColor = hexToRgb('#0b1021');
+        targetIntensity = 0.4;
+        modePill.textContent = 'Velocity reactive';
+      }
+    }
+
     function hexToRgb(hex) {
       const normalized = hex.replace('#', '');
       const value = normalized.length === 3
@@ -488,6 +549,30 @@
         b: int & 255
       };
     }
+
+    function rgbToHex({ r, g, b }) {
+      const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
+      return '#' + [clamp(r), clamp(g), clamp(b)].map((value) => value.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+
+    function shadePalette(baseColors, factor) {
+      return baseColors.map((hex) => {
+        const { r, g, b } = hexToRgb(hex);
+        return rgbToHex({
+          r: r * factor,
+          g: g * factor,
+          b: b * factor
+        });
+      });
+    }
+
+    function setPaletteColors(baseColors) {
+      colors = [...baseColors];
+      lowerOctaveColors = shadePalette(colors, 0.68);
+      upperOctaveColors = shadePalette(colors, 1.22);
+    }
+
+    setPaletteColors(colors);
 
     function rgbaString({ r, g, b }, alpha = 1) {
       return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
@@ -507,6 +592,81 @@
 
     function easeOutCubic(t) {
       return 1 - Math.pow(1 - t, 3);
+    }
+
+    function spawnFirework(colorHex, intensity = 1) {
+      const color = hexToRgb(colorHex);
+      const count = 130;
+      const cappedIntensity = Math.max(0.35, intensity);
+
+      const particles = Array.from({ length: count }, () => {
+        const angle = Math.random() * Math.PI * 2;
+        return {
+          angle,
+          speed: lerp(90, 240, Math.random()) * cappedIntensity,
+          size: lerp(1.2, 3.8, Math.random()),
+          twinkle: Math.random() * Math.PI * 2,
+          decay: lerp(0.45, 0.95, Math.random()),
+          spread: lerp(0.6, 1.1, Math.random())
+        };
+      });
+
+      fireworks.push({
+        color,
+        intensity: cappedIntensity,
+        start: performance.now(),
+        duration: FIREWORK_DECAY_MS,
+        particles
+      });
+
+      if (fireworks.length > 6) {
+        fireworks.shift();
+      }
+    }
+
+    function renderFireworks(now) {
+      if (!fireworks.length) return;
+      const centerX = viewW / 2;
+      const centerY = viewH / 2;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.globalCompositeOperation = 'lighter';
+
+      fireworks = fireworks.filter((firework) => {
+        const elapsed = now - firework.start;
+        const progress = Math.min(1, elapsed / firework.duration);
+        if (progress >= 1) return false;
+
+        const fade = 1 - progress;
+        const gravity = 60;
+
+        firework.particles.forEach((particle) => {
+          const travel = easeOutCubic(Math.min(1, progress * (0.7 + particle.decay * 0.5)));
+          const distance = particle.speed * travel;
+          const x = Math.cos(particle.angle) * distance;
+          const y = Math.sin(particle.angle) * distance + gravity * progress * progress * particle.spread;
+
+          const twinkle = 0.6 + 0.4 * Math.sin((now * 0.02) + particle.twinkle * 6);
+          const alpha = Math.max(0, fade * twinkle * firework.intensity * particle.decay);
+          const size = particle.size * (0.6 + fade * 0.6);
+
+          if (alpha <= 0.01) return;
+
+          const gradient = ctx.createRadialGradient(x, y, 0, x, y, size * 3.2);
+          gradient.addColorStop(0, rgbaString(firework.color, alpha));
+          gradient.addColorStop(1, rgbaString(firework.color, 0));
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(x, y, size * 2.6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        return true;
+      });
+
+      ctx.restore();
     }
 
     function renderRipples(now) {
@@ -538,8 +698,8 @@
     }
 
     function renderSpiralStroke(radius, innerRadius, spin, offset, color, alpha) {
-      const segments = 70;
-      const turns = 2.6 + spin * 0.6;
+      const segments = 64;
+      const turns = 2.2 + spin * 0.5;
       const widthStart = viewW * 0.08;
       const widthEnd = viewW * 0.015;
 
@@ -569,8 +729,8 @@
       if (!activeSwirls.length) return;
       const centerX = viewW / 2;
       const centerY = viewH / 2;
-      const outerRadius = Math.hypot(viewW, viewH) * 0.62;
-      const innerRadius = Math.min(viewW, viewH) * 0.065;
+      const outerRadius = Math.hypot(viewW, viewH) * 0.55;
+      const innerRadius = Math.min(viewW, viewH) * 0.05;
 
       ctx.save();
       ctx.translate(centerX, centerY);
@@ -580,16 +740,13 @@
         const progress = Math.min(1, (now - swirl.start) / swirl.duration);
         if (progress >= 1) return false;
 
-        const radial = easeOutCubic(progress);
-        const radius = lerp(outerRadius, innerRadius, radial);
-        const weave = Math.sin(progress * Math.PI * 7) * 0.65;
-        const tailStart = 0.7;
-        const sustained = progress < tailStart ? 1 : 1 - ((progress - tailStart) / (1 - tailStart));
-        const alpha = Math.max(0, sustained) * 0.95 * swirl.intensity;
-        const rotation = progress * Math.PI * 4 * swirl.spin + swirl.phase;
+        const eased = easeOutCubic(progress);
+        const radius = lerp(outerRadius, innerRadius, eased);
+        const alpha = (1 - eased) * 0.9 * swirl.intensity;
+        const rotation = eased * Math.PI * 3 * swirl.spin;
 
-        renderSpiralStroke(radius, innerRadius, swirl.spin, Math.PI + rotation + weave, swirl.colors[0], alpha);
-        renderSpiralStroke(radius, innerRadius, swirl.spin, 0 + rotation - weave, swirl.colors[1], alpha);
+        renderSpiralStroke(radius, innerRadius, swirl.spin, rotation, swirl.colors[0], alpha);
+        renderSpiralStroke(radius, innerRadius, -swirl.spin, rotation + Math.PI, swirl.colors[1], alpha * 0.9);
 
         return true;
       });
@@ -597,18 +754,18 @@
       ctx.restore();
     }
 
-    function clearSwirls() {
-      if (!activeSwirls.length) return;
-      activeSwirls = [];
-      lastSwirlAt = 0;
-    }
-
-    function resetIntervalState() {
-      clearSwirls();
-      recentNotes = [];
-    }
-
     function renderFrame(now) {
+      const timestamp = now || performance.now();
+
+      if (fireworkMode) {
+        ctx.clearRect(0, 0, viewW, viewH);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, viewW, viewH);
+        renderFireworks(timestamp);
+        animationFrameId = requestAnimationFrame(renderFrame);
+        return;
+      }
+
       currentColor = lerpColor(currentColor, targetColor, 0.065);
       currentIntensity = lerp(currentIntensity, targetIntensity, 0.05);
 
@@ -622,9 +779,8 @@
       ctx.fillStyle = overlay;
       ctx.fillRect(0, 0, viewW, viewH);
 
-      const frameNow = now || performance.now();
-      renderRipples(frameNow);
-      renderSwirls(frameNow);
+      renderRipples(timestamp);
+      renderSwirls(timestamp);
       animationFrameId = requestAnimationFrame(renderFrame);
     }
 
@@ -635,6 +791,13 @@
 
     function paint(color, velocity = 100) {
       const normalizedVelocity = Math.min(1, Math.max(0.25, velocity / 127));
+      if (fireworkMode) {
+        targetColor = hexToRgb('#000000');
+        targetIntensity = 0.9;
+        spawnFirework(color, normalizedVelocity);
+        return;
+      }
+
       targetColor = hexToRgb(color);
       targetIntensity = normalizedVelocity;
       activeRipples.push({
@@ -649,30 +812,26 @@
     }
 
     function triggerSwirlAnimation(noteA, noteB) {
-      const low = noteA.note <= noteB.note ? noteA : noteB;
-      const high = low === noteA ? noteB : noteA;
-      const leftColor = hexToRgb(colorForNote(low.note));
-      const rightColor = hexToRgb(colorForNote(high.note));
-      const intensity = Math.min(1, Math.max(0.4, (low.velocity + high.velocity) / (2 * 127)));
+      const colorA = hexToRgb(colorForNote(noteA.note));
+      const colorB = hexToRgb(colorForNote(noteB.note));
+      const intensity = Math.min(1, Math.max(0.35, (noteA.velocity + noteB.velocity) / (2 * 127)));
 
-      activeSwirls = [];
       activeSwirls.push({
-        colors: [leftColor, rightColor],
+        colors: [colorA, colorB],
         intensity,
         start: performance.now(),
-        duration: SWIRL_DURATION_MS,
-        spin: 0.9 + Math.random() * 0.5,
-        phase: 0
+        duration: 1200,
+        spin: 1.5 + Math.random() * 1.8
       });
-    }
 
-    function pruneRecentNotes(now = performance.now()) {
-      recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
-      return now;
+      if (activeSwirls.length > 6) {
+        activeSwirls.shift();
+      }
     }
 
     function registerSimultaneousHit(note, velocity) {
-      const now = pruneRecentNotes();
+      const now = performance.now();
+      recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
       const entry = { note, velocity, time: now };
       recentNotes.push(entry);
 
@@ -683,13 +842,23 @@
       const partner = [...recentNotes].reverse().find((n) => n !== entry && n.note !== note);
       if (partner) {
         lastSwirlAt = now;
-        resetIntervalState();
         triggerSwirlAnimation(entry, partner);
       }
     }
 
     function colorForNote(note) {
-      return colors[note % colors.length];
+      const octave = Math.floor(note / 12) - 1;
+      const index = note % colors.length;
+
+      if (octave === 3 && lowerOctaveColors.length) {
+        return lowerOctaveColors[index];
+      }
+
+      if (octave === 5 && upperOctaveColors.length) {
+        return upperOctaveColors[index];
+      }
+
+      return colors[index];
     }
 
     function describeNote(note) {
@@ -733,7 +902,7 @@
     function applyPaletteById(id) {
       const palette = palettes.find((p) => p.id === id) || defaultPalette;
       activePaletteId = palette.id;
-      colors = [...palette.colors];
+      setPaletteColors(palette.colors);
       refreshColorInputs();
       persistPalettes();
       showPaletteStatus('Using "' + palette.name + '" palette.');
@@ -765,7 +934,9 @@
         input.value = colors[idx];
         input.dataset.index = idx;
         input.addEventListener('input', (event) => {
-          colors[Number(event.target.dataset.index)] = event.target.value;
+          const updated = [...colors];
+          updated[Number(event.target.dataset.index)] = event.target.value;
+          setPaletteColors(updated);
         });
 
         row.appendChild(label);
@@ -813,7 +984,7 @@
       const activeFromStorage = palettes.find((p) => p.id === storedActive);
       const paletteToUse = activeFromStorage || defaultPalette;
       activePaletteId = paletteToUse.id;
-      colors = [...paletteToUse.colors];
+      setPaletteColors(paletteToUse.colors);
 
       buildPaletteGrid();
       syncPaletteSelect();
@@ -953,6 +1124,12 @@
     uiToggle.addEventListener('click', () => {
       setUIVisibility(!uiVisible);
     });
+
+    if (fireworkToggle) {
+      fireworkToggle.addEventListener('click', () => {
+        setFireworkMode(!fireworkMode);
+      });
+    }
 
     window.addEventListener('resize', resize);
     setUIVisibility(false);
