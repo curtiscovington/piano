@@ -258,6 +258,19 @@
       color: var(--muted);
     }
 
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 10px;
+    }
+
     .tip {
       margin-top: 8px;
       font-size: 13px;
@@ -497,6 +510,32 @@
           Ready to play offline after your first visit.
         </div>
       </div>
+      <div class="card" style="min-width: 260px;">
+        <div class="label">Transitions</div>
+        <div class="section-sub">Tune how the color field glides between notes.</div>
+        <div class="controls-grid" style="margin-top: 12px;">
+          <label class="input-row" for="transition-decay">
+            <div>
+              <div class="note-label">Decay time</div>
+              <div class="section-sub">How long the transition lingers (ms).</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; min-width:140px;">
+              <input id="transition-decay" type="range" min="400" max="2200" step="50" aria-label="Transition decay time">
+              <span id="transition-decay-label" class="note-label" aria-live="polite"></span>
+            </div>
+          </label>
+          <label class="input-row" for="transition-effect">
+            <div>
+              <div class="note-label">Effect shape</div>
+              <div class="section-sub">Pick the flavor of the transition.</div>
+            </div>
+            <select id="transition-effect" aria-label="Transition effect">
+              <option value="ripple">Ripple glow</option>
+              <option value="swirl">Spiral sweep</option>
+            </select>
+          </label>
+        </div>
+      </div>
     </div>
   </div>
   <div class="piano" id="piano" hidden aria-label="Onscreen piano keyboard">
@@ -524,6 +563,9 @@
     const savePaletteButton = document.getElementById('save-palette');
     const updatePaletteButton = document.getElementById('update-palette');
     const paletteMessage = document.getElementById('palette-message');
+    const transitionDecayInput = document.getElementById('transition-decay');
+    const transitionDecayLabel = document.getElementById('transition-decay-label');
+    const transitionEffectSelect = document.getElementById('transition-effect');
     const uiToggle = document.getElementById('ui-toggle');
     const fireworkToggle = document.getElementById('firework-toggle');
     const pianoToggle = document.getElementById('piano-toggle');
@@ -564,8 +606,10 @@
     let viewH = window.innerHeight;
     let uiVisible = false;
     let activeRipples = [];
+    let transitionSettings = loadTransitionSettings();
     let targetColor = hexToRgb('#0b1021');
     let currentColor = { ...targetColor };
+    let lastTransitionColor = { ...targetColor };
     let targetIntensity = 0.4;
     let currentIntensity = targetIntensity;
     let animationFrameId = null;
@@ -577,6 +621,7 @@
     let fireworks = [];
     const FIREWORK_DECAY_MS = 10000;
     const SIMULTANEOUS_WINDOW_MS = 80;
+    const DEFAULT_TRANSITION_SETTINGS = { decayMs: 1100, effect: 'ripple' };
     const installHintEl = installHint; // alias to guard optional access
     const PIANO_RANGE_START = 48; // C3
     const PIANO_RANGE_END = 72; // C5
@@ -891,6 +936,39 @@
       animationFrameId = requestAnimationFrame(renderFrame);
     }
 
+    function applyTransitionAnimation(color, velocity) {
+      const duration = transitionSettings.decayMs + (1 - velocity) * 320;
+      const spin = 1.1 + Math.random() * 1.6;
+
+      if (transitionSettings.effect === 'swirl') {
+        const previous = lastTransitionColor || color;
+        activeSwirls.push({
+          colors: [color, previous],
+          intensity: Math.min(1, Math.max(0.35, velocity)),
+          start: performance.now(),
+          duration,
+          spin
+        });
+
+        if (activeSwirls.length > 6) {
+          activeSwirls.shift();
+        }
+        lastTransitionColor = color;
+        return;
+      }
+
+      activeRipples.push({
+        color: { ...color },
+        velocity,
+        start: performance.now(),
+        duration
+      });
+      if (activeRipples.length > 8) {
+        activeRipples.shift();
+      }
+      lastTransitionColor = color;
+    }
+
     function paint(color, velocity = 100) {
       const normalizedVelocity = Math.min(1, Math.max(0.25, velocity / 127));
       if (fireworkMode) {
@@ -902,15 +980,7 @@
 
       targetColor = hexToRgb(color);
       targetIntensity = normalizedVelocity;
-      activeRipples.push({
-        color: { ...targetColor },
-        velocity: normalizedVelocity,
-        start: performance.now(),
-        duration: 900 + (1 - normalizedVelocity) * 320
-      });
-      if (activeRipples.length > 8) {
-        activeRipples.shift();
-      }
+      applyTransitionAnimation({ ...targetColor }, normalizedVelocity);
     }
 
     function triggerSwirlAnimation(noteA, noteB) {
@@ -973,6 +1043,8 @@
     }
 
     function handleNoteOn(note, velocity = 100) {
+      pruneRecentNotes();
+
       const color = colorForNote(note);
       paint(color, velocity);
       registerSimultaneousHit(note, velocity);
@@ -990,6 +1062,14 @@
         lastSwirlAt = 0;
       }
       deactivateKey(note);
+    }
+
+    function pruneRecentNotes() {
+      const now = performance.now();
+      recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
+      if (!recentNotes.length) {
+        lastSwirlAt = 0;
+      }
     }
 
     function createKey(note, isBlack) {
@@ -1089,6 +1169,61 @@
       const name = NOTE_NAMES[note % 12];
       const octave = Math.floor(note / 12) - 1;
       return name + octave;
+    }
+
+    function clampTransitionDecay(value) {
+      const numeric = Number(value);
+      const safe = Number.isFinite(numeric) ? numeric : DEFAULT_TRANSITION_SETTINGS.decayMs;
+      return Math.min(2200, Math.max(400, safe));
+    }
+
+    function loadTransitionSettings() {
+      try {
+        const stored = JSON.parse(localStorage.getItem('transitionSettings') || '{}');
+        return {
+          decayMs: clampTransitionDecay(stored.decayMs ?? DEFAULT_TRANSITION_SETTINGS.decayMs),
+          effect: stored.effect === 'swirl' ? 'swirl' : DEFAULT_TRANSITION_SETTINGS.effect
+        };
+      } catch (err) {
+        return { ...DEFAULT_TRANSITION_SETTINGS };
+      }
+    }
+
+    function persistTransitionSettings() {
+      localStorage.setItem('transitionSettings', JSON.stringify(transitionSettings));
+    }
+
+    function syncTransitionControls() {
+      if (!transitionDecayInput || !transitionEffectSelect || !transitionDecayLabel) return;
+      transitionDecayInput.value = String(transitionSettings.decayMs);
+      transitionDecayLabel.textContent = transitionSettings.decayMs + ' ms';
+      transitionEffectSelect.value = transitionSettings.effect;
+    }
+
+    function initTransitionControls() {
+      syncTransitionControls();
+
+      if (transitionDecayInput) {
+        transitionDecayInput.addEventListener('input', (event) => {
+          transitionSettings = {
+            ...transitionSettings,
+            decayMs: clampTransitionDecay(event.target.value)
+          };
+          syncTransitionControls();
+          persistTransitionSettings();
+        });
+      }
+
+      if (transitionEffectSelect) {
+        transitionEffectSelect.addEventListener('change', (event) => {
+          transitionSettings = {
+            ...transitionSettings,
+            effect: event.target.value === 'swirl' ? 'swirl' : 'ripple'
+          };
+          syncTransitionControls();
+          persistTransitionSettings();
+        });
+      }
     }
 
     function loadPalettesFromStorage() {
@@ -1366,6 +1501,7 @@
     setPianoVisibility(true);
     setUIVisibility(false);
     resize();
+    initTransitionControls();
     initPaletteControls();
     paint('#0b1021', 40);
     startAnimationLoop();
