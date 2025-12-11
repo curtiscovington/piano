@@ -962,16 +962,8 @@
       }
     }
 
-    function resetIntervalState() {
-      activeSwirls = [];
-      recentNotes = [];
-      lastSwirlAt = 0;
-    }
-
     function handleNoteOn(note, velocity = 100) {
-      if (activeSwirls.length || recentNotes.length) {
-        resetIntervalState();
-      }
+      pruneRecentNotes();
 
       const color = colorForNote(note);
       paint(color, velocity);
@@ -987,6 +979,14 @@
       pruneRecentNotes();
       recentNotes = recentNotes.filter((entry) => entry.note !== note);
       deactivateKey(note);
+    }
+
+    function pruneRecentNotes() {
+      const now = performance.now();
+      recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
+      if (!recentNotes.length) {
+        lastSwirlAt = 0;
+      }
     }
 
     function createKey(note, isBlack) {
