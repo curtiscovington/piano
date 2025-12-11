@@ -1001,9 +1001,17 @@
       }
     }
 
-    function registerSimultaneousHit(note, velocity) {
+    function pruneRecentNotes() {
       const now = performance.now();
       recentNotes = recentNotes.filter((entry) => now - entry.time < SIMULTANEOUS_WINDOW_MS);
+      if (!recentNotes.length) {
+        lastSwirlAt = 0;
+      }
+    }
+
+    function registerSimultaneousHit(note, velocity) {
+      pruneRecentNotes();
+      const now = performance.now();
       const entry = { note, velocity, time: now };
       recentNotes.push(entry);
 
@@ -1011,7 +1019,9 @@
         return;
       }
 
-      const partner = [...recentNotes].reverse().find((n) => n !== entry && n.note !== note);
+      const partner = [...recentNotes]
+        .filter((n) => n !== entry && n.note !== note && (now - n.time) < SIMULTANEOUS_WINDOW_MS)
+        .pop();
       if (partner) {
         lastSwirlAt = now;
         triggerSwirlAnimation(entry, partner);
@@ -1048,6 +1058,9 @@
     function handleNoteOff(note) {
       pruneRecentNotes();
       recentNotes = recentNotes.filter((entry) => entry.note !== note);
+      if (!recentNotes.length) {
+        lastSwirlAt = 0;
+      }
       deactivateKey(note);
     }
 
