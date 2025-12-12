@@ -46,12 +46,13 @@ const visuals = createVisuals({
   describeNote
 });
 
-function bindUI() {
-  if (uiToggle) {
-    uiToggle.addEventListener('click', () => {
-      visuals.setUIVisibility(!document.body.classList.contains('ui-hidden'));
-    });
-  }
+  function bindUI() {
+    if (uiToggle) {
+      uiToggle.addEventListener('click', () => {
+        const shouldShowUI = document.body.classList.contains('ui-hidden');
+        visuals.setUIVisibility(shouldShowUI);
+      });
+    }
 
   if (fireworkToggle) {
     fireworkToggle.addEventListener('click', () => {
