@@ -104,9 +104,17 @@ export function createVisuals({
     }
   }
 
+  function setPianoInvite(enabled) {
+    if (!pianoToggle) return;
+    pianoToggle.classList.toggle('piano-invite', Boolean(enabled));
+  }
+
   function setPianoVisibility(visible) {
     pianoVisible = visible;
     if (pianoToggle) {
+      if (visible) {
+        setPianoInvite(false);
+      }
       pianoToggle.setAttribute('aria-pressed', String(visible));
       pianoToggle.textContent = visible ? '🎹 Onscreen piano on' : '🎹 Onscreen piano off';
     }
@@ -569,6 +577,7 @@ export function createVisuals({
     setUIVisibility,
     setFireworkMode,
     setPianoVisibility,
+    setPianoInvite,
     buildOnscreenKeyboard,
     startAnimationLoop,
     initTransitionControls,
