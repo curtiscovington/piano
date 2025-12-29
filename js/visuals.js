@@ -53,6 +53,7 @@ export function createVisuals({
   const pianoKeys = new Map();
   const activePianoPresses = new Set();
   const pointerNotes = new Map();
+  let blackKeyAnchors = [];
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;
@@ -64,6 +65,7 @@ export function createVisuals({
     canvas.style.height = '100vh';
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
+    positionBlackKeys();
   }
 
   function setUIVisibility(visible) {
@@ -495,31 +497,58 @@ export function createVisuals({
     whiteKeysEl.innerHTML = '';
     blackKeysEl.innerHTML = '';
     pianoKeys.clear();
+    blackKeyAnchors = [];
 
     let whiteCount = 0;
     const blackDefs = [];
+    const whiteKeyElements = [];
 
     for (let note = PIANO_RANGE_START; note <= PIANO_RANGE_END; note++) {
       const name = NOTE_NAMES[note % 12];
       const isBlack = name.includes('#');
 
       if (isBlack) {
-        blackDefs.push({ note, position: whiteCount - 0.5 });
+        blackDefs.push({ note, anchorIndex: Math.max(0, whiteCount - 1) });
       } else {
         const key = createKey(note, false);
         whiteKeysEl.appendChild(key);
         pianoKeys.set(note, key);
+        whiteKeyElements.push(key);
         whiteCount += 1;
       }
     }
 
-    const totalWhites = whiteCount;
-    blackDefs.forEach(({ note, position }) => {
+    const fragment = document.createDocumentFragment();
+    blackDefs.forEach(({ note, anchorIndex }) => {
       const key = createKey(note, true);
-      key.style.left = (position / totalWhites * 100) + '%';
       key.style.transform = 'translateX(-50%)';
-      blackKeysEl.appendChild(key);
+      fragment.appendChild(key);
       pianoKeys.set(note, key);
+      blackKeyAnchors.push({ key, anchorIndex });
+    });
+
+    blackKeysEl.appendChild(fragment);
+    positionBlackKeys(whiteKeyElements);
+  }
+
+  function positionBlackKeys(whiteKeyElements = Array.from(whiteKeysEl?.children || [])) {
+    if (!blackKeyAnchors.length || !whiteKeyElements.length || !blackKeysEl) return;
+
+    const boardRect = blackKeysEl.getBoundingClientRect();
+    if (boardRect.width === 0) return;
+
+    const whiteCenters = whiteKeyElements.map((key) => {
+      const rect = key.getBoundingClientRect();
+      return rect.left + rect.width * 0.5;
+    });
+
+    blackKeyAnchors.forEach(({ key, anchorIndex }) => {
+      const nextIndex = Math.min(whiteCenters.length - 1, anchorIndex + 1);
+      const prevCenter = whiteCenters[anchorIndex] ?? whiteCenters[0];
+      const nextCenter = whiteCenters[nextIndex];
+      const center = (prevCenter + nextCenter) * 0.5;
+      const leftPercent = ((center - boardRect.left) / boardRect.width) * 100;
+      key.style.left = leftPercent + '%';
     });
   }
 
