@@ -127,7 +127,7 @@ function returnToMainMenu() {
     notePill.textContent = 'Waiting for activation';
   }
   if (info) {
-    info.textContent = 'Back at the main menu. Launch a mini-game to begin.';
+    info.textContent = 'Back at the mini-game HUD. The HUD adapts to the mini-game you pick.';
   }
   if (mainMenu) {
     mainMenu.focus();
