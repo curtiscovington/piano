@@ -89,10 +89,51 @@ function bindUI() {
   window.addEventListener('resize', visuals.resize);
 }
 
+function launchRainbowGame() {
+  document.body.classList.remove('mode-main-menu');
+  document.body.classList.add('game-zooming');
+  if (rainbowGameButton) {
+    rainbowGameButton.classList.add('zooming');
+  }
+  visuals.setPianoVisibility(true);
+  visuals.setUIVisibility(true);
+  if (modePill) {
+    modePill.textContent = 'Rainbow piano active';
+  }
+  if (info) {
+    info.textContent = 'Zoomed into the rainbow piano intervention.';
+  }
+  setTimeout(() => {
+    document.body.classList.remove('game-zooming');
+    if (rainbowGameButton) {
+      rainbowGameButton.classList.remove('zooming');
+    }
+  }, 750);
+}
+
+function returnToMainMenu() {
+  document.body.classList.add('mode-main-menu');
+  document.body.classList.remove('game-zooming');
+  visuals.setUIVisibility(false);
+  visuals.setPianoVisibility(false);
+  if (modePill) {
+    modePill.textContent = 'Velocity reactive';
+  }
+  if (notePill) {
+    notePill.textContent = 'Waiting for activation';
+  }
+  if (info) {
+    info.textContent = 'Back at the main menu. Launch a mini-game to begin.';
+  }
+  if (mainMenu) {
+    mainMenu.focus();
+  }
+}
+
 function init() {
   bindUI();
   visuals.buildOnscreenKeyboard();
-  visuals.setPianoVisibility(true);
+  visuals.setPianoVisibility(false);
   visuals.setUIVisibility(false);
   visuals.resize();
   visuals.initTransitionControls();
@@ -110,6 +151,7 @@ function init() {
   setupInstallPrompt({ installButton, installHint });
   showIOSTips({ iosTip });
   registerServiceWorker({ offlineTip });
+  returnToMainMenu();
 }
 
 init();

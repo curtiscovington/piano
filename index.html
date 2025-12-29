@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <title>Piano Color Field</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=Baloo+2:wght@600&display=swap');
 
     :root {
       --bg: #050713;
@@ -23,6 +23,10 @@
       --accent: #77ffd0;
       --accent-2: #7cc6ff;
       --glow: rgba(119, 255, 208, 0.18);
+      --pastel-1: #ffe6f7;
+      --pastel-2: #d8f3ff;
+      --pastel-3: #e7ffe5;
+      --pastel-ink: #1f2a44;
     }
 
     * { box-sizing: border-box; }
@@ -214,6 +218,35 @@
       font-size: 20px;
       letter-spacing: 0.4px;
     }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .back-button {
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      border-radius: 12px;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .back-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(119, 255, 208, 0.7);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+    }
+
+    .back-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
     .eyebrow {
       text-transform: uppercase;
@@ -541,8 +574,40 @@
     }
   </style>
 </head>
-<body class="ui-hidden">
+<body class="ui-hidden mode-main-menu">
   <canvas id="viz" aria-hidden="true"></canvas>
+  <div id="main-menu" class="main-menu" aria-label="Main menu" tabindex="-1">
+    <div class="tablet" role="presentation">
+      <div class="tablet-shine" aria-hidden="true"></div>
+      <div class="sparkles" aria-hidden="true"></div>
+      <div class="doodles" aria-hidden="true">
+        <div class="doodle cloud"></div>
+        <div class="doodle star"></div>
+        <div class="doodle bubble"></div>
+      </div>
+      <div class="tablet-top">
+        <div class="eyebrow">Rainbow playground</div>
+        <div class="menu-title">Pick a colorful adventure</div>
+        <p class="section-sub" style="color: #526183;">Tap a mini-game to explore music magic with your therapist.</p>
+        <div class="menu-note">✨ Soft colors, cozy sounds, kid-friendly vibes.</div>
+        <div class="menu-badges">
+          <span class="badge">🌈 Rainbow calm</span>
+          <span class="badge">🎨 Visual fun</span>
+          <span class="badge">🧸 Gentle focus</span>
+        </div>
+      </div>
+      <div class="menu-grid">
+        <button id="rainbow-game" class="menu-card" type="button" aria-label="Open rainbow piano mini-game">
+          <div class="game-icon-button" aria-hidden="true">🌈</div>
+          <div class="game-copy">
+            <div class="game-title">Rainbow piano</div>
+            <div class="section-sub">Cartoon pastel piano with color blooms and sparkles.</div>
+          </div>
+          <span class="menu-chevron" aria-hidden="true">➜</span>
+        </button>
+      </div>
+    </div>
+  </div>
   <button id="ui-toggle" class="ui-toggle" aria-pressed="false" aria-label="Show controls">
     <span class="icon" aria-hidden="true"></span>
   </button>
