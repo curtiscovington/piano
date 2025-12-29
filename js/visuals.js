@@ -104,9 +104,22 @@ export function createVisuals({
     }
   }
 
+  function setPianoInvite(enabled) {
+    if (!pianoToggle) return;
+    const invite = Boolean(enabled);
+    pianoToggle.classList.toggle('piano-invite', invite);
+    if (!pianoVisible) {
+      pianoToggle.textContent = invite ? '🎹 Show onscreen piano' : '🎹 Onscreen piano off';
+      pianoToggle.setAttribute('aria-label', invite ? 'Show onscreen piano (no MIDI detected)' : 'Toggle onscreen piano');
+    }
+  }
+
   function setPianoVisibility(visible) {
     pianoVisible = visible;
     if (pianoToggle) {
+      if (visible) {
+        setPianoInvite(false);
+      }
       pianoToggle.setAttribute('aria-pressed', String(visible));
       pianoToggle.textContent = visible ? '🎹 Onscreen piano on' : '🎹 Onscreen piano off';
     }
@@ -569,6 +582,7 @@ export function createVisuals({
     setUIVisibility,
     setFireworkMode,
     setPianoVisibility,
+    setPianoInvite,
     buildOnscreenKeyboard,
     startAnimationLoop,
     initTransitionControls,
