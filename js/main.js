@@ -24,8 +24,6 @@ const uiToggle = document.getElementById('ui-toggle');
 const fireworkToggle = document.getElementById('firework-toggle');
 const pianoToggle = document.getElementById('piano-toggle');
 const rainbowGameButton = document.getElementById('rainbow-game');
-const backButton = document.getElementById('back-button');
-const mainMenu = document.getElementById('main-menu');
 const piano = document.getElementById('piano');
 const whiteKeysEl = document.getElementById('white-keys');
 const blackKeysEl = document.getElementById('black-keys');
@@ -71,13 +69,20 @@ function bindUI() {
 
   if (rainbowGameButton) {
     rainbowGameButton.addEventListener('click', () => {
-      launchRainbowGame();
-    });
-  }
-
-  if (backButton) {
-    backButton.addEventListener('click', () => {
-      returnToMainMenu();
+      document.body.classList.add('game-zooming');
+      rainbowGameButton.classList.add('zooming');
+      visuals.setPianoVisibility(true);
+      visuals.setUIVisibility(true);
+      if (modePill) {
+        modePill.textContent = 'Rainbow piano active';
+      }
+      if (info) {
+        info.textContent = 'Zoomed into the rainbow piano intervention.';
+      }
+      setTimeout(() => {
+        document.body.classList.remove('game-zooming');
+        rainbowGameButton.classList.remove('zooming');
+      }, 750);
     });
   }
 
