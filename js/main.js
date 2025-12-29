@@ -28,6 +28,7 @@ const piano = document.getElementById('piano');
 const whiteKeysEl = document.getElementById('white-keys');
 const blackKeysEl = document.getElementById('black-keys');
 const midiStatus = document.getElementById('midi-status');
+const mainMenu = document.getElementById('main-menu');
 
 const visuals = createVisuals({
   canvas,
@@ -46,6 +47,12 @@ const visuals = createVisuals({
   colorForNote,
   describeNote
 });
+
+function setUIToggleAvailability(isMiniGameActive) {
+  if (uiToggle) {
+    uiToggle.hidden = !isMiniGameActive;
+  }
+}
 
 function bindUI() {
   if (uiToggle) {
@@ -68,22 +75,7 @@ function bindUI() {
   }
 
   if (rainbowGameButton) {
-    rainbowGameButton.addEventListener('click', () => {
-      document.body.classList.add('game-zooming');
-      rainbowGameButton.classList.add('zooming');
-      visuals.setPianoVisibility(true);
-      visuals.setUIVisibility(true);
-      if (modePill) {
-        modePill.textContent = 'Rainbow piano active';
-      }
-      if (info) {
-        info.textContent = 'Zoomed into the rainbow piano intervention.';
-      }
-      setTimeout(() => {
-        document.body.classList.remove('game-zooming');
-        rainbowGameButton.classList.remove('zooming');
-      }, 750);
-    });
+    rainbowGameButton.addEventListener('click', launchRainbowGame);
   }
 
   window.addEventListener('resize', visuals.resize);
@@ -92,6 +84,7 @@ function bindUI() {
 function launchRainbowGame() {
   document.body.classList.remove('mode-main-menu');
   document.body.classList.add('game-zooming');
+  setUIToggleAvailability(true);
   if (rainbowGameButton) {
     rainbowGameButton.classList.add('zooming');
   }
@@ -114,6 +107,7 @@ function launchRainbowGame() {
 function returnToMainMenu() {
   document.body.classList.add('mode-main-menu');
   document.body.classList.remove('game-zooming');
+  setUIToggleAvailability(false);
   visuals.setUIVisibility(false);
   visuals.setPianoVisibility(false);
   if (modePill) {
