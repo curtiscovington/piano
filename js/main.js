@@ -23,6 +23,7 @@ const transitionEffectSelect = document.getElementById('transition-effect');
 const uiToggle = document.getElementById('ui-toggle');
 const fireworkToggle = document.getElementById('firework-toggle');
 const pianoToggle = document.getElementById('piano-toggle');
+const rainbowGameButton = document.getElementById('rainbow-game');
 const piano = document.getElementById('piano');
 const whiteKeysEl = document.getElementById('white-keys');
 const blackKeysEl = document.getElementById('black-keys');
@@ -46,13 +47,13 @@ const visuals = createVisuals({
   describeNote
 });
 
-  function bindUI() {
-    if (uiToggle) {
-      uiToggle.addEventListener('click', () => {
-        const shouldShowUI = document.body.classList.contains('ui-hidden');
-        visuals.setUIVisibility(shouldShowUI);
-      });
-    }
+function bindUI() {
+  if (uiToggle) {
+    uiToggle.addEventListener('click', () => {
+      const shouldShowUI = document.body.classList.contains('ui-hidden');
+      visuals.setUIVisibility(shouldShowUI);
+    });
+  }
 
   if (fireworkToggle) {
     fireworkToggle.addEventListener('click', () => {
@@ -63,6 +64,25 @@ const visuals = createVisuals({
   if (pianoToggle) {
     pianoToggle.addEventListener('click', () => {
       visuals.setPianoVisibility(piano.hidden);
+    });
+  }
+
+  if (rainbowGameButton) {
+    rainbowGameButton.addEventListener('click', () => {
+      document.body.classList.add('game-zooming');
+      rainbowGameButton.classList.add('zooming');
+      visuals.setPianoVisibility(true);
+      visuals.setUIVisibility(true);
+      if (modePill) {
+        modePill.textContent = 'Rainbow piano active';
+      }
+      if (info) {
+        info.textContent = 'Zoomed into the rainbow piano intervention.';
+      }
+      setTimeout(() => {
+        document.body.classList.remove('game-zooming');
+        rainbowGameButton.classList.remove('zooming');
+      }, 750);
     });
   }
 
