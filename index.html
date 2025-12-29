@@ -490,6 +490,17 @@
       pointer-events: none;
     }
 
+    .main-menu {
+      transition: opacity 0.45s ease, transform 0.45s ease, visibility 0.45s ease;
+    }
+
+    body:not(.mode-main-menu) .main-menu {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(8px) scale(0.99);
+    }
+
     body.mode-main-menu .ui-toggle {
       display: none;
     }
