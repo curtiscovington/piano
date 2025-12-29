@@ -21,6 +21,7 @@ const transitionDecayInput = document.getElementById('transition-decay');
 const transitionDecayLabel = document.getElementById('transition-decay-label');
 const transitionEffectSelect = document.getElementById('transition-effect');
 const uiToggle = document.getElementById('ui-toggle');
+const rainbowToggle = document.getElementById('rainbow-toggle');
 const fireworkToggle = document.getElementById('firework-toggle');
 const pianoToggle = document.getElementById('piano-toggle');
 const piano = document.getElementById('piano');
@@ -46,13 +47,57 @@ const visuals = createVisuals({
   describeNote
 });
 
-  function bindUI() {
-    if (uiToggle) {
-      uiToggle.addEventListener('click', () => {
-        const shouldShowUI = document.body.classList.contains('ui-hidden');
-        visuals.setUIVisibility(shouldShowUI);
-      });
+let rainbowActive = false;
+
+function setRainbowActive(active) {
+  rainbowActive = active;
+  document.body.classList.toggle('rainbow-active', active);
+  if (!active) {
+    document.body.classList.remove('rainbow-hover');
+    visuals.setFireworkMode(false);
+    visuals.setPianoVisibility(false);
+    if (modePill) {
+      modePill.textContent = 'Rainbow paused';
     }
+    if (info) {
+      info.textContent = 'Rainbow controls hidden. Toggle back on to explore.';
+    }
+  } else {
+    document.body.classList.remove('rainbow-hover');
+    visuals.setPianoVisibility(true);
+    if (modePill) {
+      modePill.textContent = 'Rainbow piano active';
+    }
+  }
+  if (rainbowToggle) {
+    rainbowToggle.setAttribute('aria-pressed', String(active));
+    rainbowToggle.textContent = active ? '🌈 Rainbow piano on' : '🌈 Rainbow piano off';
+    rainbowToggle.setAttribute('aria-label', active ? 'Disable rainbow piano HUD' : 'Enable rainbow piano HUD');
+  }
+}
+
+function handleRainbowHovering(hovering) {
+  if (rainbowActive) return;
+  document.body.classList.toggle('rainbow-hover', hovering);
+}
+
+function bindUI() {
+  if (uiToggle) {
+    uiToggle.addEventListener('click', () => {
+      const shouldShowUI = document.body.classList.contains('ui-hidden');
+      visuals.setUIVisibility(shouldShowUI);
+    });
+  }
+
+  if (rainbowToggle) {
+    rainbowToggle.addEventListener('click', () => {
+      setRainbowActive(!rainbowActive);
+    });
+    rainbowToggle.addEventListener('mouseenter', () => handleRainbowHovering(true));
+    rainbowToggle.addEventListener('mouseleave', () => handleRainbowHovering(false));
+    rainbowToggle.addEventListener('focus', () => handleRainbowHovering(true));
+    rainbowToggle.addEventListener('blur', () => handleRainbowHovering(false));
+  }
 
   if (fireworkToggle) {
     fireworkToggle.addEventListener('click', () => {
@@ -72,7 +117,7 @@ const visuals = createVisuals({
 function init() {
   bindUI();
   visuals.buildOnscreenKeyboard();
-  visuals.setPianoVisibility(true);
+  setRainbowActive(false);
   visuals.setUIVisibility(false);
   visuals.resize();
   visuals.initTransitionControls();

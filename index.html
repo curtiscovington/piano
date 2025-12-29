@@ -120,6 +120,28 @@
       margin-top: 10px;
     }
 
+    .rainbow-toggle {
+      background: linear-gradient(135deg, rgba(119, 255, 208, 0.18), rgba(124, 198, 255, 0.18));
+      border-color: rgba(119, 255, 208, 0.5);
+    }
+
+    body:not(.rainbow-active) .rainbow-locked {
+      display: none !important;
+    }
+
+    body:not(.rainbow-active) .deck {
+      grid-template-columns: 1fr;
+    }
+
+    .how-it-plays-card {
+      display: none;
+    }
+
+    body.rainbow-hover .how-it-plays-card,
+    body.rainbow-active .how-it-plays-card {
+      display: grid;
+    }
+
     .mode-button {
       background: transparent;
       border: 1px solid var(--stroke);
@@ -467,10 +489,13 @@
         </div>
 
         <div class="action-row">
-          <button id="firework-toggle" class="mode-button" aria-pressed="false" aria-label="Toggle firework mode">
+          <button id="rainbow-toggle" class="mode-button rainbow-toggle" aria-pressed="false" aria-label="Toggle rainbow piano HUD">
+            🌈 Rainbow piano off
+          </button>
+          <button id="firework-toggle" class="mode-button rainbow-locked" aria-pressed="false" aria-label="Toggle firework mode">
             🧨 Fireworks off
           </button>
-          <button id="piano-toggle" class="mode-button" aria-pressed="false" aria-label="Toggle onscreen piano">
+          <button id="piano-toggle" class="mode-button rainbow-locked" aria-pressed="false" aria-label="Toggle onscreen piano">
             🎹 Onscreen piano off
           </button>
         </div>
@@ -482,7 +507,7 @@
       </div>
     </div>
     <div class="deck">
-      <div class="card palette-card" aria-label="Color palette controls">
+      <div class="card palette-card rainbow-locked" aria-label="Color palette controls">
         <div class="section-header">
           <div>
             <div class="label">Palette studio</div>
@@ -500,7 +525,7 @@
         </div>
         <div class="palette-message" id="palette-message" aria-live="polite"></div>
       </div>
-      <div class="card mini-card" style="min-width: 240px;">
+      <div class="card mini-card how-it-plays-card" style="min-width: 240px;">
         <div class="label">How it plays</div>
         <div class="tip">Plug in your keyboard, allow MIDI, and play. Each note floods the view with its color; velocity shapes the brightness.</div>
         <div class="tip" id="ios-tip" hidden>
@@ -510,7 +535,7 @@
           Ready to play offline after your first visit.
         </div>
       </div>
-      <div class="card" style="min-width: 260px;">
+      <div class="card rainbow-locked" style="min-width: 260px;">
         <div class="label">Transitions</div>
         <div class="section-sub">Tune how the color field glides between notes.</div>
         <div class="controls-grid" style="margin-top: 12px;">
