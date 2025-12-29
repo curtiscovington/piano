@@ -23,12 +23,13 @@ const transitionEffectSelect = document.getElementById('transition-effect');
 const uiToggle = document.getElementById('ui-toggle');
 const fireworkToggle = document.getElementById('firework-toggle');
 const pianoToggle = document.getElementById('piano-toggle');
-const rainbowGameButton = document.getElementById('rainbow-game');
+const rainbowGameButtons = Array.from(document.querySelectorAll('[data-game="rainbow"]'));
 const piano = document.getElementById('piano');
 const whiteKeysEl = document.getElementById('white-keys');
 const blackKeysEl = document.getElementById('black-keys');
 const midiStatus = document.getElementById('midi-status');
 const mainMenu = document.getElementById('main-menu');
+let midiInstrumentConnected = false;
 
 const visuals = createVisuals({
   canvas,
@@ -54,6 +55,12 @@ function setUIToggleAvailability(isMiniGameActive) {
   }
 }
 
+function updateOnscreenPianoInvite() {
+  const pianoHidden = piano ? piano.hidden : true;
+  const shouldInvite = !midiInstrumentConnected && pianoHidden;
+  visuals.setPianoInvite(shouldInvite);
+}
+
 function bindUI() {
   if (uiToggle) {
     uiToggle.addEventListener('click', () => {
@@ -71,24 +78,26 @@ function bindUI() {
   if (pianoToggle) {
     pianoToggle.addEventListener('click', () => {
       visuals.setPianoVisibility(piano.hidden);
+      updateOnscreenPianoInvite();
     });
   }
 
-  if (rainbowGameButton) {
-    rainbowGameButton.addEventListener('click', launchRainbowGame);
-  }
+  rainbowGameButtons.forEach((button) => {
+    button.addEventListener('click', () => launchRainbowGame(button));
+  });
 
   window.addEventListener('resize', visuals.resize);
 }
 
-function launchRainbowGame() {
+function launchRainbowGame(sourceButton) {
   document.body.classList.remove('mode-main-menu');
   document.body.classList.add('game-zooming');
   setUIToggleAvailability(true);
-  if (rainbowGameButton) {
-    rainbowGameButton.classList.add('zooming');
+  if (sourceButton) {
+    sourceButton.classList.add('zooming');
   }
-  visuals.setPianoVisibility(true);
+  visuals.setPianoVisibility(false);
+  updateOnscreenPianoInvite();
   visuals.setUIVisibility(true);
   if (modePill) {
     modePill.textContent = 'Rainbow piano active';
@@ -98,8 +107,8 @@ function launchRainbowGame() {
   }
   setTimeout(() => {
     document.body.classList.remove('game-zooming');
-    if (rainbowGameButton) {
-      rainbowGameButton.classList.remove('zooming');
+    if (sourceButton) {
+      sourceButton.classList.remove('zooming');
     }
   }, 750);
 }
@@ -110,6 +119,7 @@ function returnToMainMenu() {
   setUIToggleAvailability(false);
   visuals.setUIVisibility(false);
   visuals.setPianoVisibility(false);
+  visuals.setPianoInvite(false);
   if (modePill) {
     modePill.textContent = 'Velocity reactive';
   }
@@ -122,6 +132,14 @@ function returnToMainMenu() {
   if (mainMenu) {
     mainMenu.focus();
   }
+}
+
+function handleMidiDevicesChanged({ connected }) {
+  midiInstrumentConnected = connected;
+  if (connected) {
+    visuals.setPianoVisibility(false);
+  }
+  updateOnscreenPianoInvite();
 }
 
 function init() {
@@ -141,7 +159,13 @@ function init() {
   });
   visuals.paint('#0b1021', 40);
   visuals.startAnimationLoop();
-  setupMIDI({ midiStatus, info, handleNoteOn: visuals.handleNoteOn, handleNoteOff: visuals.handleNoteOff });
+  setupMIDI({
+    midiStatus,
+    info,
+    handleNoteOn: visuals.handleNoteOn,
+    handleNoteOff: visuals.handleNoteOff,
+    onDevicesChanged: handleMidiDevicesChanged
+  });
   setupInstallPrompt({ installButton, installHint });
   showIOSTips({ iosTip });
   registerServiceWorker({ offlineTip });

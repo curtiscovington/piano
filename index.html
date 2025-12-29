@@ -203,6 +203,35 @@
       gap: 8px;
     }
 
+    .mode-button.piano-invite {
+      position: relative;
+      border-color: rgba(119, 255, 208, 0.8);
+      box-shadow: 0 14px 38px rgba(119, 255, 208, 0.22), 0 0 0 1px rgba(124, 198, 255, 0.22);
+      animation: pianoInvite 2.1s ease-in-out infinite;
+    }
+
+    .mode-button.piano-invite::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 14px;
+      background: radial-gradient(circle, rgba(119, 255, 208, 0.18), rgba(119, 255, 208, 0));
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    @keyframes pianoInvite {
+      0% { transform: translateY(0); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(124, 198, 255, 0.22); }
+      50% { transform: translateY(-2px); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32), 0 0 0 10px rgba(119, 255, 208, 0.12); }
+      100% { transform: translateY(0); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(124, 198, 255, 0.22); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mode-button.piano-invite {
+        animation: none;
+      }
+    }
+
     .mode-button[aria-pressed="true"] {
       border-color: var(--accent);
       box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(119, 255, 208, 0.3);
@@ -601,7 +630,7 @@
         </div>
       </div>
       <div class="menu-grid">
-        <button id="rainbow-game" class="menu-card" type="button" aria-label="Open rainbow piano mini-game">
+        <button class="menu-card" type="button" aria-label="Open rainbow piano mini-game" data-game="rainbow" data-target="rp-hud">
           <div class="game-icon-button" aria-hidden="true">🌈</div>
           <div class="game-copy">
             <div class="game-title">Rainbow piano</div>
@@ -619,7 +648,7 @@
     <div class="shell-top">
       <div class="card primary" aria-live="polite">
         <div class="game-launcher">
-          <button id="rainbow-game" class="game-icon-button" aria-label="Launch rainbow piano game">
+          <button class="game-icon-button" aria-label="Launch rainbow piano game" data-game="rainbow" data-target="rp-hud">
             🌈
           </button>
           <div class="game-copy">
