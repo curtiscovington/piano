@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <title>Piano Color Field</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=Baloo+2:wght@600&display=swap');
 
     :root {
       --bg: #050713;
@@ -23,6 +23,10 @@
       --accent: #77ffd0;
       --accent-2: #7cc6ff;
       --glow: rgba(119, 255, 208, 0.18);
+      --pastel-1: #ffe6f7;
+      --pastel-2: #d8f3ff;
+      --pastel-3: #e7ffe5;
+      --pastel-ink: #1f2a44;
     }
 
     * { box-sizing: border-box; }
@@ -106,6 +110,277 @@
       gap: 12px;
     }
 
+    .main-menu {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.96);
+      transition: opacity 0.45s ease, transform 0.45s ease, visibility 0.35s ease;
+      z-index: 4;
+      visibility: hidden;
+      background: radial-gradient(circle at 30% 22%, rgba(255, 230, 247, 0.45), transparent 40%),
+        radial-gradient(circle at 78% 10%, rgba(216, 243, 255, 0.38), transparent 36%),
+        radial-gradient(circle at 50% 70%, rgba(231, 255, 229, 0.4), transparent 42%);
+    }
+
+    .mode-main-menu .main-menu {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+      visibility: visible;
+    }
+
+    .tablet {
+      position: relative;
+      width: min(720px, 94vw);
+      padding: 28px 24px 30px;
+      border-radius: 32px;
+      background: linear-gradient(150deg, rgba(255, 255, 255, 0.78), rgba(231, 255, 229, 0.78) 40%, rgba(216, 243, 255, 0.8));
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.25),
+        0 0 0 14px rgba(255, 255, 255, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      overflow: hidden;
+      backdrop-filter: blur(18px) saturate(140%);
+      color: var(--pastel-ink);
+    }
+
+    .tablet::after {
+      content: '';
+      position: absolute;
+      inset: 12px;
+      border-radius: 26px;
+      border: 2px dashed rgba(255, 255, 255, 0.85);
+      pointer-events: none;
+      box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.55);
+    }
+
+    .tablet-shine {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.35), transparent 45%),
+        radial-gradient(circle at 80% 0%, rgba(124, 198, 255, 0.22), transparent 40%),
+        linear-gradient(120deg, rgba(255, 255, 255, 0.14), transparent 45%);
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    .tablet .sparkles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 18% 30%, rgba(255, 170, 210, 0.7) 0, rgba(255, 170, 210, 0) 28%),
+        radial-gradient(circle at 82% 34%, rgba(160, 230, 255, 0.7) 0, rgba(160, 230, 255, 0) 24%),
+        radial-gradient(circle at 52% 76%, rgba(255, 238, 170, 0.6) 0, rgba(255, 238, 170, 0) 30%),
+        radial-gradient(circle at 30% 70%, rgba(180, 255, 210, 0.6) 0, rgba(180, 255, 210, 0) 26%);
+      opacity: 0.45;
+    }
+
+    .tablet .doodles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .doodle {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 30% 40% 55% 35%;
+      background: linear-gradient(135deg, rgba(255, 182, 222, 0.4), rgba(216, 243, 255, 0.5));
+      filter: blur(0.2px);
+    }
+
+    .doodle.cloud { top: -22px; left: -18px; transform: rotate(-6deg); }
+    .doodle.star { bottom: -10px; right: -8px; transform: rotate(14deg); }
+    .doodle.bubble {
+      width: 80px;
+      height: 80px;
+      top: 18px;
+      right: 34px;
+      border-radius: 40%;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(216, 243, 255, 0.4));
+    }
+
+    .tablet-top {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tablet .section-sub {
+      color: #526183;
+    }
+
+    .menu-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 14px;
+      border: 2px solid rgba(124, 198, 255, 0.6);
+      font-weight: 700;
+      color: var(--pastel-ink);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      width: fit-content;
+    }
+
+    .menu-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      color: #4b5a7a;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .menu-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      font-family: 'Baloo 2', 'Sora', system-ui, sans-serif;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .menu-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(216, 243, 255, 0.9));
+      border: 2px solid rgba(255, 255, 255, 0.95);
+      border-radius: 18px;
+      color: var(--pastel-ink);
+      cursor: pointer;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.2), 0 0 0 8px rgba(255, 255, 255, 0.75);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+      text-align: left;
+    }
+
+    .menu-card:hover {
+      transform: translateY(-2px) scale(1.015);
+      box-shadow: 0 24px 56px rgba(0, 0, 0, 0.25);
+      border-color: rgba(124, 198, 255, 0.9);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(216, 243, 255, 0.96));
+    }
+
+    .menu-card:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .menu-chevron {
+      font-size: 18px;
+      color: #7a8aad;
+      transition: transform 0.3s ease;
+    }
+
+    .menu-card:hover .menu-chevron {
+      transform: translateX(4px);
+    }
+
+    .game-launcher {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: linear-gradient(130deg, rgba(119, 255, 208, 0.14), rgba(124, 198, 255, 0.1));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    }
+
+    .game-icon-button {
+      position: relative;
+      width: 74px;
+      height: 74px;
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0)), linear-gradient(140deg, #ff9fd8, #9bd9ff 55%, #c4ffd7);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      color: #1b2338;
+      font-size: 26px;
+      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+    }
+
+    .menu-card .game-icon-button {
+      border-color: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2), 0 0 0 8px rgba(255, 255, 255, 0.8);
+    }
+
+    .game-icon-button::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border-radius: 14px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0));
+      opacity: 0.9;
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+
+    .game-icon-button:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 20px 44px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(119, 255, 208, 0.35);
+      border-color: rgba(119, 255, 208, 0.8);
+    }
+
+    .game-icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    .game-icon-button.zooming {
+      transform: scale(1.08);
+      box-shadow: 0 28px 56px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(119, 255, 208, 0.55);
+      border-color: rgba(119, 255, 208, 0.9);
+    }
+
+    .game-copy {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .game-copy .game-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+
+    .game-copy .section-sub {
+      margin: 0;
+      line-height: 1.5;
+    }
+
     .primary {
       display: flex;
       flex-direction: column;
@@ -144,6 +419,35 @@
       font-size: 20px;
       letter-spacing: 0.4px;
     }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .back-button {
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      border-radius: 12px;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .back-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(119, 255, 208, 0.7);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+    }
+
+    .back-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
     .eyebrow {
       text-transform: uppercase;
@@ -358,6 +662,51 @@
       pointer-events: none;
     }
 
+    canvas#viz,
+    .hud,
+    .piano {
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: center;
+    }
+
+    .mode-main-menu canvas#viz {
+      transform: scale(0.9) translateY(14px);
+      filter: saturate(0.8) blur(1px);
+      opacity: 0.35;
+    }
+
+    .mode-main-menu .hud,
+    .mode-main-menu .footnote {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(12px) scale(0.96);
+    }
+
+    .mode-main-menu .ui-toggle {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px) scale(0.92);
+    }
+
+    .mode-main-menu .piano {
+      opacity: 0;
+      transform: translateX(-50%) translateY(20px) scale(0.9);
+      pointer-events: none;
+    }
+
+    body.game-zooming canvas#viz {
+      transform: scale(1.06);
+    }
+
+    body.game-zooming .hud {
+      transform: scale(1.02);
+    }
+
+    body.game-zooming .piano {
+      transform: translateY(-6px) scale(1.02);
+    }
+
     .piano {
       position: fixed;
       left: 50%;
@@ -452,14 +801,54 @@
     }
   </style>
 </head>
-<body class="ui-hidden">
+<body class="ui-hidden mode-main-menu">
   <canvas id="viz" aria-hidden="true"></canvas>
+  <div id="main-menu" class="main-menu" aria-label="Main menu" tabindex="-1">
+    <div class="tablet" role="presentation">
+      <div class="tablet-shine" aria-hidden="true"></div>
+      <div class="sparkles" aria-hidden="true"></div>
+      <div class="doodles" aria-hidden="true">
+        <div class="doodle cloud"></div>
+        <div class="doodle star"></div>
+        <div class="doodle bubble"></div>
+      </div>
+      <div class="tablet-top">
+        <div class="eyebrow">Rainbow playground</div>
+        <div class="menu-title">Pick a colorful adventure</div>
+        <p class="section-sub" style="color: #526183;">Tap a mini-game to explore music magic with your therapist.</p>
+        <div class="menu-note">✨ Soft colors, cozy sounds, kid-friendly vibes.</div>
+        <div class="menu-badges">
+          <span class="badge">🌈 Rainbow calm</span>
+          <span class="badge">🎨 Visual fun</span>
+          <span class="badge">🧸 Gentle focus</span>
+        </div>
+      </div>
+      <div class="menu-grid">
+        <button id="rainbow-game" class="menu-card" type="button" aria-label="Open rainbow piano mini-game">
+          <div class="game-icon-button" aria-hidden="true">🌈</div>
+          <div class="game-copy">
+            <div class="game-title">Rainbow piano</div>
+            <div class="section-sub">Cartoon pastel piano with color blooms and sparkles.</div>
+          </div>
+          <span class="menu-chevron" aria-hidden="true">➜</span>
+        </button>
+      </div>
+    </div>
+  </div>
   <button id="ui-toggle" class="ui-toggle" aria-pressed="false" aria-label="Show controls">
     <span class="icon" aria-hidden="true"></span>
   </button>
   <div class="hud" role="presentation">
     <div class="shell-top">
       <div class="card primary" aria-live="polite">
+        <div class="title-row">
+          <button id="back-button" class="back-button" type="button" aria-label="Return to main menu">←</button>
+          <div class="title-block">
+            <div class="eyebrow">Rainbow piano</div>
+            <h1>Session controls</h1>
+            <p class="section-sub">Guide your client through the rainbow piano experience.</p>
+          </div>
+        </div>
         <div class="status">
           <span class="pill" id="midi-status"><span class="dot"></span>Scanning MIDI…</span>
           <span class="pill" id="note-pill">No notes yet</span>

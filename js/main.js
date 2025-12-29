@@ -23,6 +23,9 @@ const transitionEffectSelect = document.getElementById('transition-effect');
 const uiToggle = document.getElementById('ui-toggle');
 const fireworkToggle = document.getElementById('firework-toggle');
 const pianoToggle = document.getElementById('piano-toggle');
+const rainbowGameButton = document.getElementById('rainbow-game');
+const backButton = document.getElementById('back-button');
+const mainMenu = document.getElementById('main-menu');
 const piano = document.getElementById('piano');
 const whiteKeysEl = document.getElementById('white-keys');
 const blackKeysEl = document.getElementById('black-keys');
@@ -46,13 +49,13 @@ const visuals = createVisuals({
   describeNote
 });
 
-  function bindUI() {
-    if (uiToggle) {
-      uiToggle.addEventListener('click', () => {
-        const shouldShowUI = document.body.classList.contains('ui-hidden');
-        visuals.setUIVisibility(shouldShowUI);
-      });
-    }
+function bindUI() {
+  if (uiToggle) {
+    uiToggle.addEventListener('click', () => {
+      const shouldShowUI = document.body.classList.contains('ui-hidden');
+      visuals.setUIVisibility(shouldShowUI);
+    });
+  }
 
   if (fireworkToggle) {
     fireworkToggle.addEventListener('click', () => {
@@ -66,13 +69,66 @@ const visuals = createVisuals({
     });
   }
 
+  if (rainbowGameButton) {
+    rainbowGameButton.addEventListener('click', () => {
+      launchRainbowGame();
+    });
+  }
+
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      returnToMainMenu();
+    });
+  }
+
   window.addEventListener('resize', visuals.resize);
+}
+
+function launchRainbowGame() {
+  document.body.classList.remove('mode-main-menu');
+  document.body.classList.add('game-zooming');
+  if (rainbowGameButton) {
+    rainbowGameButton.classList.add('zooming');
+  }
+  visuals.setPianoVisibility(true);
+  visuals.setUIVisibility(true);
+  if (modePill) {
+    modePill.textContent = 'Rainbow piano active';
+  }
+  if (info) {
+    info.textContent = 'Zoomed into the rainbow piano intervention.';
+  }
+  setTimeout(() => {
+    document.body.classList.remove('game-zooming');
+    if (rainbowGameButton) {
+      rainbowGameButton.classList.remove('zooming');
+    }
+  }, 750);
+}
+
+function returnToMainMenu() {
+  document.body.classList.add('mode-main-menu');
+  document.body.classList.remove('game-zooming');
+  visuals.setUIVisibility(false);
+  visuals.setPianoVisibility(false);
+  if (modePill) {
+    modePill.textContent = 'Velocity reactive';
+  }
+  if (notePill) {
+    notePill.textContent = 'Waiting for activation';
+  }
+  if (info) {
+    info.textContent = 'Back at the main menu. Launch a mini-game to begin.';
+  }
+  if (mainMenu) {
+    mainMenu.focus();
+  }
 }
 
 function init() {
   bindUI();
   visuals.buildOnscreenKeyboard();
-  visuals.setPianoVisibility(true);
+  visuals.setPianoVisibility(false);
   visuals.setUIVisibility(false);
   visuals.resize();
   visuals.initTransitionControls();
@@ -90,6 +146,7 @@ function init() {
   setupInstallPrompt({ installButton, installHint });
   showIOSTips({ iosTip });
   registerServiceWorker({ offlineTip });
+  returnToMainMenu();
 }
 
 init();
