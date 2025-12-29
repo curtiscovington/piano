@@ -157,12 +157,6 @@
 
     .game-icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-    .game-icon-button.zooming {
-      transform: scale(1.08);
-      box-shadow: 0 28px 56px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(119, 255, 208, 0.55);
-      border-color: rgba(119, 255, 208, 0.9);
-    }
-
     .game-copy {
       display: grid;
       gap: 4px;
@@ -259,6 +253,35 @@
       0% { clip-path: inset(0 60% 0 0); opacity: 0.35; }
       50% { clip-path: inset(0 0 0 0); opacity: 0.75; }
       100% { clip-path: inset(0 0 0 60%); opacity: 0.35; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mode-button.piano-invite {
+        animation: none;
+      }
+    }
+
+    .mode-button.piano-invite {
+      position: relative;
+      border-color: rgba(119, 255, 208, 0.8);
+      box-shadow: 0 14px 38px rgba(119, 255, 208, 0.22), 0 0 0 1px rgba(124, 198, 255, 0.22);
+      animation: pianoInvite 2.1s ease-in-out infinite;
+    }
+
+    .mode-button.piano-invite::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 14px;
+      background: radial-gradient(circle, rgba(119, 255, 208, 0.18), rgba(119, 255, 208, 0));
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    @keyframes pianoInvite {
+      0% { transform: translateY(0); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(124, 198, 255, 0.22); }
+      50% { transform: translateY(-2px); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32), 0 0 0 10px rgba(119, 255, 208, 0.12); }
+      100% { transform: translateY(0); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(124, 198, 255, 0.22); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -525,27 +548,36 @@
       pointer-events: none;
     }
 
+    .main-menu {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      transition: opacity 0.45s ease, transform 0.45s ease, visibility 0.45s ease;
+      pointer-events: auto;
+      background: radial-gradient(circle at 50% 30%, rgba(119, 255, 208, 0.06), rgba(12, 15, 29, 0.35)),
+        radial-gradient(circle at 10% 10%, rgba(255, 122, 209, 0.08), rgba(12, 15, 29, 0.4)),
+        radial-gradient(circle at 90% 80%, rgba(124, 198, 255, 0.08), rgba(12, 15, 29, 0.4));
+    }
+
+    body:not(.mode-main-menu) .main-menu {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(8px) scale(0.99);
+    }
+
     body.mode-main-menu .ui-toggle {
       display: none;
     }
 
-    canvas#viz,
-    .hud,
-    .piano {
-      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-      transform-origin: center;
-    }
-
-    body.game-zooming canvas#viz {
-      transform: scale(1.06);
-    }
-
-    body.game-zooming .hud {
-      transform: scale(1.02);
-    }
-
-    body.game-zooming .piano {
-      transform: translateY(-6px) scale(1.02);
+    .main-menu .launch-icon {
+      width: 110px;
+      height: 110px;
+      font-size: 40px;
+      border-radius: 24px;
     }
 
     .piano {
@@ -644,37 +676,10 @@
 </head>
 <body class="ui-hidden mode-main-menu">
   <canvas id="viz" aria-hidden="true"></canvas>
-  <div id="main-menu" class="main-menu" aria-label="Main menu" tabindex="-1">
-    <div class="tablet" role="presentation">
-      <div class="tablet-shine" aria-hidden="true"></div>
-      <div class="sparkles" aria-hidden="true"></div>
-      <div class="doodles" aria-hidden="true">
-        <div class="doodle cloud"></div>
-        <div class="doodle star"></div>
-        <div class="doodle bubble"></div>
-      </div>
-      <div class="tablet-top">
-        <div class="eyebrow">Rainbow playground</div>
-        <div class="menu-title">Pick a colorful adventure</div>
-        <p class="section-sub" style="color: #526183;">Tap a mini-game to explore music magic with your therapist.</p>
-        <div class="menu-note">✨ Soft colors, cozy sounds, kid-friendly vibes.</div>
-        <div class="menu-badges">
-          <span class="badge">🌈 Rainbow calm</span>
-          <span class="badge">🎨 Visual fun</span>
-          <span class="badge">🧸 Gentle focus</span>
-        </div>
-      </div>
-      <div class="menu-grid">
-        <button class="menu-card" type="button" aria-label="Open rainbow piano mini-game" data-game="rainbow" data-target="rp-hud">
-          <div class="game-icon-button" aria-hidden="true">🌈</div>
-          <div class="game-copy">
-            <div class="game-title">Rainbow piano</div>
-            <div class="section-sub">Cartoon pastel piano with color blooms and sparkles.</div>
-          </div>
-          <span class="menu-chevron" aria-hidden="true">➜</span>
-        </button>
-      </div>
-    </div>
+  <div id="main-menu" class="main-menu" aria-label="Launch rainbow piano" tabindex="-1">
+    <button class="game-icon-button launch-icon" type="button" aria-label="Launch rainbow piano" data-game="rainbow" data-target="rp-hud">
+      🌈
+    </button>
   </div>
   <button id="ui-toggle" class="ui-toggle" aria-pressed="false" aria-label="Show controls">
     <span class="icon" aria-hidden="true"></span>
@@ -689,7 +694,7 @@
           <div class="game-copy">
             <div class="eyebrow">Intervention</div>
             <div class="game-title">Rainbow piano</div>
-            <div class="section-sub">Tap the icon to zoom into the rainbow piano experience used by your music therapist.</div>
+            <div class="section-sub">Tap the icon to jump into the rainbow piano experience used by your music therapist.</div>
           </div>
         </div>
         <div class="status">

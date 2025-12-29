@@ -106,12 +106,7 @@ export function createVisuals({
 
   function setPianoInvite(enabled) {
     if (!pianoToggle) return;
-    const invite = Boolean(enabled);
-    pianoToggle.classList.toggle('piano-invite', invite);
-    if (!pianoVisible) {
-      pianoToggle.textContent = invite ? '🎹 Show onscreen piano' : '🎹 Onscreen piano off';
-      pianoToggle.setAttribute('aria-label', invite ? 'Show onscreen piano (no MIDI detected)' : 'Toggle onscreen piano');
-    }
+    pianoToggle.classList.toggle('piano-invite', Boolean(enabled));
   }
 
   function setPianoVisibility(visible) {
