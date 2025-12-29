@@ -91,11 +91,7 @@ function bindUI() {
 
 function launchRainbowGame(sourceButton) {
   document.body.classList.remove('mode-main-menu');
-  document.body.classList.add('game-zooming');
   setUIToggleAvailability(true);
-  if (sourceButton) {
-    sourceButton.classList.add('zooming');
-  }
   visuals.setPianoVisibility(false);
   updateOnscreenPianoInvite();
   visuals.setUIVisibility(true);
@@ -103,19 +99,12 @@ function launchRainbowGame(sourceButton) {
     modePill.textContent = 'Rainbow piano active';
   }
   if (info) {
-    info.textContent = 'Zoomed into the rainbow piano intervention.';
+    info.textContent = 'Rainbow piano is active.';
   }
-  setTimeout(() => {
-    document.body.classList.remove('game-zooming');
-    if (sourceButton) {
-      sourceButton.classList.remove('zooming');
-    }
-  }, 750);
 }
 
 function returnToMainMenu() {
   document.body.classList.add('mode-main-menu');
-  document.body.classList.remove('game-zooming');
   setUIToggleAvailability(false);
   visuals.setUIVisibility(false);
   visuals.setPianoVisibility(false);
@@ -127,7 +116,7 @@ function returnToMainMenu() {
     notePill.textContent = 'Waiting for activation';
   }
   if (info) {
-    info.textContent = 'Back at the mini-game HUD. The HUD adapts to the mini-game you pick.';
+    info.textContent = 'Tap the rainbow piano icon to begin.';
   }
   if (mainMenu) {
     mainMenu.focus();
